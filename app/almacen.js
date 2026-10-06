@@ -6,7 +6,7 @@
 (function (global) {
   "use strict";
   const NOMBRE_BD = "rutas_muestreo_suelos";
-  const VERSION_BD = 1;
+  const VERSION_BD = 2;   // v2: almacén "recorrido" (ubicaciones GPS registradas en campo)
   let bdPromesa = null;
 
   function abrir() {
@@ -23,6 +23,9 @@
         }
         if (!bd.objectStoreNames.contains("fotos")) {
           bd.createObjectStore("fotos", { keyPath: "id" }).createIndex("punto_id", "punto_id");
+        }
+        if (!bd.objectStoreNames.contains("recorrido")) {
+          bd.createObjectStore("recorrido", { keyPath: "id", autoIncrement: true }).createIndex("ingenio", "ingenio");
         }
       };
       sol.onsuccess = () => resolver(sol.result);
@@ -93,6 +96,22 @@
 
     fotosDe(punto_id) {
       return tx(["fotos"], "readonly", (t) => req(t.objectStore("fotos").index("punto_id").getAll(punto_id)));
+    },
+
+    /** Recorrido GPS: una ubicación {ingenio, tramo, t, lat, lon, precision_m, velocidad_ms, rumbo, responsable}. */
+    agregarUbicacion(u) {
+      return tx(["recorrido"], "readwrite", (t) => { t.objectStore("recorrido").add(u); });
+    },
+
+    recorridoDe(ingenio) {
+      return tx(["recorrido"], "readonly", (t) => req(t.objectStore("recorrido").index("ingenio").getAll(ingenio)));
+    },
+
+    borrarRecorrido(ingenio) {
+      return tx(["recorrido"], "readwrite", async (t) => {
+        const claves = await req(t.objectStore("recorrido").index("ingenio").getAllKeys(ingenio));
+        for (const k of claves) t.objectStore("recorrido").delete(k);
+      });
     },
 
     /** Borra los datos locales de un ingenio (solo registros sin sincronizar se pierden; se pide confirmación en la interfaz). */

@@ -6,7 +6,7 @@
   "use strict";
 
   const ESTADOS = {
-    pendiente: { etiqueta: "Pendiente", color: "#4A4A4A", icono: "○" },
+    pendiente: { etiqueta: "Pendiente", color: "#5E2D91", icono: "○" },
     en_camino: { etiqueta: "En camino", color: "#59CBE8", icono: "➜" },
     realizado: { etiqueta: "Realizado", color: "#00C97E", icono: "✓" },
     inconveniente: { etiqueta: "Con inconvenientes", color: "#EC3D96", icono: "!" },

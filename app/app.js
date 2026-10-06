@@ -55,7 +55,9 @@
   capaSat.addTo(mapa);
   let enSatelite = true;
 
-  L.marker([META.sede.lat, META.sede.lon], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: "<div class='sede-ico'>🏠</div>" }) })
+  const ICONO_SEDE = "<div class='sede-ico'><svg viewBox='0 0 24 24' aria-hidden='true'><path fill='#fff' d='M2 21V11l5 3.2V11l5 3.2V11l3 1.9V4h2.2v9.3H18V6h2.2v15z'/>" +
+    "<path fill='#5E2D91' d='M5 16.5h2v2H5zm4.5 0h2v2h-2zm4.5 0h2v2h-2z'/></svg></div>";
+  L.marker([META.sede.lat, META.sede.lon], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: ICONO_SEDE }), zIndexOffset: 500 })
     .bindPopup(`<b>Sede — ${esc(META.sede.nombre)}</b><br>Salida ${esc(META.hora_salida)}`).addTo(mapa);
 
   const capaRutas = {}, marcadores = {};
@@ -97,6 +99,55 @@
   }
 
   // ---------------- GPS en tiempo real ----------------
+  // La ubicación se dibuja como un triángulo que apunta hacia donde se avanza (rumbo del GPS o, si el celular no lo
+  // entrega, el rumbo entre las dos últimas posiciones separadas al menos 8 m). Mientras el GPS está activo, el
+  // recorrido se guarda en el celular (IndexedDB) para comparar tiempos reales con los del plan.
+  const FLECHA_GPS = "<div class='gps-flecha sin-rumbo'><svg viewBox='0 0 40 40' aria-hidden='true'><path d='M20 3 35 36 20 28 5 36z'/></svg></div>";
+  const PRECISION_MAX_M = C.GPS_PRECISION_MAX_M || 50, PASO_MIN_M = 10, PASO_MAX_S = 30;
+  let rumbo = null, baseRumbo = null, tramo = null, ultimoGuardado = null, bloqueoPantalla = null, lineaActual = null;
+  const capaRecorrido = L.layerGroup().addTo(mapa);
+  const estiloRecorrido = (l) => [L.polyline(l, { color: "#4A4A4A", weight: 7, opacity: .55, interactive: false }),
+    L.polyline(l, { color: "#FFFFFF", weight: 3.5, dashArray: "7 6", opacity: 1, interactive: false })];
+  function dibujarTramo(coords) {
+    const [fondo, linea] = estiloRecorrido(coords);
+    capaRecorrido.addLayer(fondo); capaRecorrido.addLayer(linea);
+    return { agregar: (ll) => { fondo.addLatLng(ll); linea.addLatLng(ll); } };
+  }
+  function rumboEntre(a, b) {
+    const r = Math.PI / 180, y = Math.sin((b.lon - a.lon) * r) * Math.cos(b.lat * r);
+    const x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos((b.lon - a.lon) * r);
+    return (Math.atan2(y, x) / r + 360) % 360;
+  }
+  function girarFlecha() {
+    const el = marcaGps && marcaGps.getElement() && marcaGps.getElement().querySelector(".gps-flecha");
+    if (!el || rumbo === null) return;
+    el.classList.remove("sin-rumbo"); el.style.transform = `translate(-50%, -50%) rotate(${rumbo}deg)`;
+  }
+  async function guardarUbicacion(pos) {
+    if (pos.coords.accuracy > PRECISION_MAX_M) return;
+    const t = Date.now(), p = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+    if (ultimoGuardado && distanciaM(ultimoGuardado, p) < PASO_MIN_M && t - ultimoGuardado.t < PASO_MAX_S * 1000) return;
+    ultimoGuardado = Object.assign({ t }, p);
+    const v = pos.coords.speed;
+    try {
+      await Almacen.agregarUbicacion({ ingenio: ING, tramo, t: new Date(t).toISOString(), lat: +p.lat.toFixed(7), lon: +p.lon.toFixed(7),
+        precision_m: Math.round(pos.coords.accuracy), velocidad_ms: typeof v === "number" && !isNaN(v) ? +v.toFixed(2) : null,
+        rumbo: rumbo === null ? null : Math.round(rumbo), responsable: localStorage.getItem("rutas_responsable") || "" });
+      if (!lineaActual) lineaActual = dibujarTramo([[p.lat, p.lon]]); else lineaActual.agregar([p.lat, p.lon]);
+    } catch (e) { /* sin espacio o almacenamiento bloqueado: la ubicación se sigue mostrando */ }
+  }
+  async function mantenerPantalla() {
+    try { if (gpsId !== null && "wakeLock" in navigator && document.visibilityState === "visible") bloqueoPantalla = await navigator.wakeLock.request("screen"); }
+    catch (e) { bloqueoPantalla = null; }
+  }
+  document.addEventListener("visibilitychange", mantenerPantalla);
+  async function cargarRecorridoDeHoy() {
+    const hoy = new Date().toDateString();
+    const tramos = {};
+    (await Almacen.recorridoDe(ING)).filter((u) => new Date(u.t).toDateString() === hoy)
+      .forEach((u) => { (tramos[u.tramo] = tramos[u.tramo] || []).push([u.lat, u.lon]); });
+    Object.values(tramos).forEach((c) => dibujarTramo(c));
+  }
   let gpsId = null, seguir = false, miPos = null, marcaGps = null, circuloGps = null;
   function pintarBotonGps() {
     const b = $("#btnGps");
@@ -107,25 +158,34 @@
   function iniciarGps() {
     if (!("geolocation" in navigator)) { toast("Este dispositivo no permite obtener la ubicación"); return; }
     seguir = true;
+    tramo = `${ING}-${new Date().toISOString()}`; ultimoGuardado = null; lineaActual = null; baseRumbo = null;
+    mantenerPantalla();
     gpsId = navigator.geolocation.watchPosition((pos) => {
       miPos = { lat: pos.coords.latitude, lon: pos.coords.longitude, precision: pos.coords.accuracy };
-      const ll = [miPos.lat, miPos.lon];
+      const ll = [miPos.lat, miPos.lon], h = pos.coords.heading, v = pos.coords.speed;
+      if (typeof h === "number" && !isNaN(h) && (v === null || v > 0.5)) rumbo = h;
+      else if (!baseRumbo) baseRumbo = miPos;
+      else if (distanciaM(baseRumbo, miPos) >= Math.max(8, miPos.precision / 2)) { rumbo = rumboEntre(baseRumbo, miPos); baseRumbo = miPos; }
       if (!marcaGps) {
-        circuloGps = L.circle(ll, { radius: miPos.precision, color: "#1a73e8", weight: 1, fillOpacity: .12 }).addTo(mapa);
-        marcaGps = L.marker(ll, { icon: L.divIcon({ className: "", iconSize: [0, 0], html: "<div class='gps-punto'></div>" }), zIndexOffset: 1000 })
+        circuloGps = L.circle(ll, { radius: miPos.precision, color: "#5E2D91", weight: 1, fillColor: "#59CBE8", fillOpacity: .18, interactive: false }).addTo(mapa);
+        marcaGps = L.marker(ll, { icon: L.divIcon({ className: "", iconSize: [0, 0], html: FLECHA_GPS }), zIndexOffset: 1000 })
           .bindPopup("Mi ubicación").addTo(mapa);
       } else { marcaGps.setLatLng(ll); circuloGps.setLatLng(ll).setRadius(miPos.precision); }
+      girarFlecha();
+      guardarUbicacion(pos);
       if (seguir) mapa.setView(ll, Math.max(mapa.getZoom(), 16), { animate: true });
       if (seleccionado) pintarDistancia();
     }, (err) => {
-      toast(err.code === 1 ? "Permiso de ubicación denegado: actívelo en el navegador" : "No se pudo obtener la ubicación (revise el GPS)");
-      detenerGps();
-    }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+      // Solo se apaga si se negó el permiso; una pérdida momentánea de señal no detiene la ubicación ni el recorrido
+      if (err.code === 1) { toast("Permiso de ubicación denegado: actívelo en el navegador"); detenerGps(); }
+      else if (!miPos) toast("Buscando señal GPS…");
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
     pintarBotonGps();
   }
   function detenerGps() {
     if (gpsId !== null) navigator.geolocation.clearWatch(gpsId);
-    gpsId = null; seguir = false;
+    gpsId = null; seguir = false; lineaActual = null; rumbo = null;
+    if (bloqueoPantalla) { bloqueoPantalla.release().catch(() => {}); bloqueoPantalla = null; }
     if (marcaGps) { mapa.removeLayer(marcaGps); mapa.removeLayer(circuloGps); marcaGps = circuloGps = null; }
     pintarBotonGps();
   }
@@ -151,7 +211,7 @@
   // ---------------- Botones flotantes ----------------
   $("#btnCapa").onclick = () => {
     if (enSatelite) { mapa.removeLayer(capaSat); capaCalles.addTo(mapa); } else { mapa.removeLayer(capaCalles); capaSat.addTo(mapa); }
-    enSatelite = !enSatelite; $("#btnCapa").textContent = enSatelite ? "🗺️" : "🛰️";
+    enSatelite = !enSatelite; $("#btnCapa").title = enSatelite ? "Cambiar a mapa de calles" : "Cambiar a imagen satelital";
   };
   $("#btnTodo").onclick = () => { filtroDia = "todos"; filtroEstado = "todos"; $("#selDia").value = "todos"; $("#selEstado").value = "todos"; seguir = false; pintarBotonGps(); pintarTodo(true); };
   $("#btnSiguiente").onclick = () => {
@@ -438,9 +498,14 @@
         ${Object.values(E).map((v) => `<div><span class="mues" style="background:${v.color}">${v.icono} ${ej}</span>${v.etiqueta}</div>`).join("")}
         <div><span class="mues" style="background:${E.pendiente.color};border-color:${COLORES[RUTAS[0].dia]}">${ej}</span>El borde indica el día de la ruta</div>
         ${RUTAS.map((r) => `<div><span class="linea" style="background:${COLORES[r.dia]}"></span>Ruta del día ${r.dia}</div>`).join("")}
-        <div><span style="font-size:22px;min-width:64px;text-align:center">🏠</span>Sede de salida y regreso</div>
-        <div><span style="min-width:64px;display:flex;justify-content:center"><span class="gps-punto" style="transform:none"></span></span>Mi ubicación (GPS)</div>
+        <div><span class="ley-ico">${ICONO_SEDE}</span>Sede del ingenio (salida y regreso)</div>
+        <div><span class="ley-ico">${FLECHA_GPS.replace(" sin-rumbo", "")}</span>Mi ubicación: el triángulo apunta hacia donde avanzo</div>
+        <div><span class="ley-ico"><span class="linea" style="background:repeating-linear-gradient(90deg,#fff 0 7px,transparent 7px 12px);outline:2px solid #4A4A4A"></span></span>Mi recorrido de hoy (GPS)</div>
       </div>
+      <h3>Mi recorrido GPS</h3>
+      <p class="nota" id="resumenRecorrido">Calculando…</p>
+      <button class="opcion" id="bRecorrido"><span>⬇️ Exportar recorrido (GeoJSON)<small>Tramos con hora, velocidad y precisión de cada ubicación, para calibrar los tiempos del modelo de rutas</small></span></button>
+      <button class="opcion" id="bBorrarRecorrido"><span style="color:var(--magenta)">Borrar el recorrido guardado de este ingenio</span></button>
       <h3>Base de datos y sincronización</h3>
       <div class="aviso info" id="estadoSyncTexto">${esc($("#chipSync").textContent)}</div>
       ${!Sync.configurado ? `<p class="nota">La base de datos central aún no está configurada: los registros se guardan solo en este celular.
@@ -468,7 +533,17 @@
       if (!correo) return toast("Escriba su correo");
       try { await Sync.iniciarSesion(correo); toast("Revise su correo y abra el enlace de acceso"); } catch (e) { toast(e.message); }
     });
-    on("#bCsv", exportarCsv); on("#bGeojson", exportarGeojson);
+    on("#bCsv", exportarCsv); on("#bGeojson", exportarGeojson); on("#bRecorrido", exportarRecorrido);
+    on("#bBorrarRecorrido", async () => {
+      if (!confirm(`¿Borrar el recorrido GPS de ${META.nombre} guardado en este celular? Exporte primero si lo necesita.`)) return;
+      await Almacen.borrarRecorrido(ING); capaRecorrido.clearLayers(); lineaActual = null; toast("Recorrido borrado"); pintarMas();
+    });
+    tramosRecorrido().then((ts) => {
+      const el = $("#resumenRecorrido"); if (!el) return;
+      const n = ts.reduce((s, t) => s + t.u.length, 0), km = ts.reduce((s, t) => s + t.km, 0);
+      el.textContent = n ? `${ts.length} tramo(s) · ${n} ubicaciones · ${coma(km)} km recorridos, guardados en este celular. El recorrido se graba automáticamente mientras la ubicación (triángulo) está activa y la pantalla encendida.`
+        : "Aún no hay recorrido guardado. Se graba automáticamente al activar la ubicación con el botón del triángulo.";
+    });
     on("#bInstalar", async () => { eventoInstalar.prompt(); eventoInstalar = null; pintarMas(); });
     on("#bBorrar", async () => {
       const pendientes = Object.values(REG).filter((r) => r.pendiente_sync).length;
@@ -488,6 +563,31 @@
       r.profundidad, r.humedad_suelo, r.observaciones, (r.fotos || []).length, p.lat, p.lon, r.actualizado_en, r.actualizado_por, r.pendiente_sync]; });
     const csv = [cols].concat(filas).map((f) => f.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
     descargar(`registros_muestreo_${ING.toLowerCase()}.csv`, "﻿" + csv, "text/csv;charset=utf-8");
+  }
+  async function tramosRecorrido() {
+    const grupos = {};
+    (await Almacen.recorridoDe(ING)).forEach((u) => { (grupos[u.tramo] = grupos[u.tramo] || []).push(u); });
+    return Object.entries(grupos).map(([id, u]) => {
+      u.sort((a, b) => a.t.localeCompare(b.t));
+      let km = 0; for (let i = 1; i < u.length; i++) km += distanciaM(u[i - 1], u[i]) / 1000;
+      return { id, u, km };
+    });
+  }
+  async function exportarRecorrido() {
+    const ts = await tramosRecorrido();
+    if (!ts.length) { toast("Aún no hay recorrido guardado"); return; }
+    const features = [];
+    ts.forEach((tr) => {
+      const ini = tr.u[0].t, fin = tr.u[tr.u.length - 1].t;
+      if (tr.u.length > 1) features.push({ type: "Feature", geometry: { type: "LineString", coordinates: tr.u.map((x) => [x.lon, x.lat]) },
+        properties: { tipo: "tramo", tramo: tr.id, ingenio: META.nombre, inicio: ini, fin, n_ubicaciones: tr.u.length,
+          km: +tr.km.toFixed(3), duracion_min: +((new Date(fin) - new Date(ini)) / 60000).toFixed(1), responsable: tr.u[0].responsable } });
+      tr.u.forEach((x) => features.push({ type: "Feature", geometry: { type: "Point", coordinates: [x.lon, x.lat] },
+        properties: { tipo: "ubicacion", tramo: tr.id, ingenio: META.nombre, fecha_hora: x.t, precision_m: x.precision_m,
+          velocidad_kmh: x.velocidad_ms === null ? null : +(x.velocidad_ms * 3.6).toFixed(1), rumbo: x.rumbo, responsable: x.responsable } }));
+    });
+    descargar(`recorrido_gps_${ING.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.geojson`,
+      JSON.stringify({ type: "FeatureCollection", features }), "application/geo+json");
   }
   function exportarGeojson() {
     const fc = { type: "FeatureCollection", features: PUNTOS.map((p) => { const r = reg(p.id); return { type: "Feature",
@@ -534,6 +634,7 @@
   async function iniciar() {
     try { await recargarRegistros(); } catch (e) { toast("No se pudo abrir el almacenamiento local: " + e.message); }
     pintarMapa(true); pintarAvance(); pintarBotonGps();
+    cargarRecorridoDeHoy().catch(() => {});
     Sync.iniciar(ING, recargarRegistros, pintarEstadoSync);
     if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
       navigator.serviceWorker.register("sw.js").catch((e) => console.warn("Service worker:", e));

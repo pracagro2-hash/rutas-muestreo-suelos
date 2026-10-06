@@ -16,7 +16,10 @@ estimación del **stock de carbono orgánico del suelo (COS)** en áreas cultiva
 ## Funcionalidades
 
 - **Mapa satelital** (o de calles) con las rutas de cada día en su color y cada punto identificado por su ID.
-- **Ubicación GPS en tiempo real** (punto azul con su precisión) y modo *seguirme*; distancia del usuario a cada punto.
+- **Ubicación GPS en tiempo real**: triángulo que apunta en la dirección de avance, círculo de precisión y modo *seguirme*;
+  distancia del usuario a cada punto.
+- **Registro del recorrido real**: mientras la ubicación está activa se guarda en el celular cada desplazamiento (≥ 10 m o
+  cada 30 s, con hora, velocidad y precisión), se dibuja en el mapa y se exporta a GeoJSON para calibrar los tiempos del modelo de rutas.
 - **Filtros** por día y por estado; botones para ver todas las rutas y para ir al **siguiente punto pendiente**.
 - **Ficha de cada punto:** estado (*Pendiente*, *En camino*, *Realizado*, *Con inconvenientes*), fecha y hora,
   responsable, profundidad, humedad del suelo, observaciones, **fotografías**, historial de cambios y navegación
