@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Pruebas — rutas de muestreo</title>
+<style>body{font-family:Tahoma,sans-serif;padding:16px} .ok{color:#00a066} .mal{color:#c0005a} pre{white-space:pre-wrap}</style></head>
+<body>
+<h1>Pruebas automáticas</h1>
+<p>Abrir con <code>?fase=1</code> (lógica + escritura en IndexedDB) y luego, tras cerrar y abrir el navegador, con <code>?fase=2</code> (lectura persistente).</p>
+<pre id="resultado">Ejecutando…</pre>
+<script>window.CONFIG_APP = {};</script>
+<script src="../app/logica.js"></script>
+<script src="../app/almacen.js"></script>
+<script>
+(async function () {
+  const fase = new URLSearchParams(location.search).get("fase") || "1";
+  const out = [], fallas = [];
+  const ok = (cond, nombre) => { out.push((cond ? "OK   " : "FALLA") + "  " + nombre); if (!cond) fallas.push(nombre); };
+  const ING = "PRUEBA";
+  const puntos = [
+    { id: "T-001", dia: 1, orden: 1 }, { id: "T-002", dia: 1, orden: 2 }, { id: "T-003", dia: 2, orden: 1 }, { id: "T-004", dia: 2, orden: 2 },
+  ];
+  const rutas = [{ dia: 1, km: 10.5, horas_viaje: 1.2, horas_muestreo: 3.3, horas_totales: 4.5, regreso: "11:00" },
+                 { dia: 2, km: 20, horas_viaje: 2, horas_muestreo: 3, horas_totales: 5, regreso: "12:00" }];
+  try {
+    if (fase === "1") {
+      // --- Estadísticas sin registros ---
+      let st = Logica.estadisticas(puntos, {}, rutas);
+      ok(st.total === 4 && st.porEstado.pendiente === 4 && st.avance === 0, "estadísticas iniciales: 4 pendientes, avance 0");
+      ok(Math.abs(st.km_total - 30.5) < 1e-9 && st.horas_totales === 9.5, "km y horas totales salen de las rutas (30,5 km; 9,5 h)");
+      // --- Cambios de estado ---
+      const t = "2026-10-06T10:00:00.000Z";
+      let r1 = Logica.registroInicial(puntos[0], ING);
+      const r1b = Logica.aplicarCambios(r1, { estado: "realizado", responsable: "Ana", profundidad: "0–15 cm", humedad_suelo: "23.5" }, "ana@x.co", t);
+      ok(r1b !== r1 && r1b.estado === "realizado" && r1.estado === "pendiente", "aplicarCambios devuelve un registro nuevo sin mutar el anterior");
+      ok(r1b.fecha_hora_muestreo === t, "al marcar realizado se registra fecha y hora automáticamente");
+      ok(r1b.humedad_suelo === 23.5 && r1b.pendiente_sync === true, "humedad convertida a número y registro marcado para sincronizar");
+      ok(r1b.historial.length === 1 && r1b.historial[0].cambios.estado[0] === "pendiente" && r1b.historial[0].usuario === "ana@x.co",
+         "historial con valor anterior, nuevo y usuario");
+      const r1c = Logica.aplicarCambios(r1b, { estado: "realizado", responsable: "Ana" }, "ana@x.co", t);
+      ok(r1c === r1b, "sin cambios reales no se agrega historial");
+      let error = null;
+      try { Logica.aplicarCambios(r1b, { humedad_suelo: 140 }, "x", t); } catch (e) { error = e; }
+      ok(error !== null, "humedad fuera de 0–100 % se rechaza");
+      const r1d = Logica.aplicarCambios(r1b, { observaciones: "corrección" }, "jefe@x.co", "2026-10-06T11:00:00.000Z");
+      ok(r1d.historial.length === 2 && r1d.observaciones === "corrección", "corrección de un registro conserva el historial anterior");
+      // --- Estadísticas con registros, sin doble conteo ---
+      const reg = { "T-001": r1d, "T-003": Logica.aplicarCambios(Logica.registroInicial(puntos[2], ING), { estado: "inconveniente", observaciones: "lote inundado" }, "x", t) };
+      st = Logica.estadisticas(puntos.concat([puntos[0]]), reg, rutas);  // T-001 duplicado a propósito
+      ok(st.total === 4 && st.porEstado.realizado === 1 && st.porEstado.inconveniente === 1 && st.porEstado.pendiente === 2,
+         "un punto duplicado no se cuenta dos veces");
+      ok(st.avance === 0.25 && st.dias[0].realizado === 1 && st.dias[0].avance === 0.5, "avance general (25 %) y por día (50 %)");
+      // --- Siguiente pendiente ---
+      ok(Logica.siguientePendiente(puntos, reg, "todos").id === "T-002", "siguiente pendiente respeta el orden de visita");
+      ok(Logica.siguientePendiente(puntos, reg, 2).id === "T-003", "siguiente pendiente del día 2 incluye puntos con inconvenientes");
+      // --- Combinación con datos remotos ---
+      const remoto = Object.assign({}, r1d, { estado: "inconveniente", version: 3, pendiente_sync: undefined });
+      const sinPend = Object.assign({}, r1d, { pendiente_sync: false, version_remota: 2 });
+      ok(Logica.combinarRemoto(sinPend, remoto).estado === "inconveniente", "sin cambios locales se adopta el registro remoto");
+      const conPend = Object.assign({}, r1d, { pendiente_sync: true, version_remota: 2 });
+      const comb = Logica.combinarRemoto(conPend, remoto);
+      ok(comb.estado === "realizado" && comb.conflicto && comb.conflicto.version === 3, "conflicto: se conservan los datos locales y la copia remota");
+      const alDia = Object.assign({}, conPend, { version_remota: 3, conflicto: null });
+      ok(Logica.combinarRemoto(alDia, remoto) === alDia, "si el remoto no avanzó se conservan los cambios locales sin conflicto");
+      // --- Persistencia (escritura) ---
+      await Almacen.borrarIngenio(ING);
+      await Almacen.guardarRegistro(r1d);
+      await Almacen.guardarRegistro(r1d);   // dos veces: una sola operación en cola
+      const cola = (await Almacen.leerCola()).filter((o) => o.ingenio === ING);
+      ok(cola.length === 1, "la cola de sincronización no duplica operaciones del mismo punto");
+      out.push("\nFase 1 terminada: registro T-001 guardado en IndexedDB.");
+    } else {
+      // --- Persistencia (lectura tras cerrar el navegador) ---
+      const regs = await Almacen.registrosDe(ING);
+      const r = regs.find((x) => x.punto_id === "T-001");
+      ok(r && r.estado === "realizado" && r.responsable === "Ana" && r.historial.length === 2, "el registro persiste tras cerrar y abrir el navegador");
+      const cola = (await Almacen.leerCola()).filter((o) => o.ingenio === ING);
+      ok(cola.length === 1, "la cola de sincronización persiste");
+      await Almacen.borrarIngenio(ING);
+      ok((await Almacen.registrosDe(ING)).length === 0, "limpieza de datos de prueba");
+    }
+  } catch (e) { fallas.push("excepción: " + e.message); out.push("EXCEPCIÓN: " + e.stack); }
+  out.push("\n" + (fallas.length ? `RESULTADO: ${fallas.length} FALLA(S)` : "RESULTADO: TODAS LAS PRUEBAS OK"));
+  const el = document.getElementById("resultado");
+  el.textContent = out.join("\n"); el.className = fallas.length ? "mal" : "ok";
+  document.title = fallas.length ? "PRUEBAS FALLIDAS" : "PRUEBAS OK";
+})();
+</script>
+</body></html>

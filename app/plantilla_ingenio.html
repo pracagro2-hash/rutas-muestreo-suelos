@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#5E2D91">
-<meta name="description" content="Planificación, navegación y seguimiento del muestreo de suelos — Ingenio Manuelita">
-<title>Rutas de muestreo de suelos — Ingenio Manuelita</title>
+<meta name="description" content="Planificación, navegación y seguimiento del muestreo de suelos — Ingenio {{NOMBRE}}">
+<title>Rutas de muestreo de suelos — Ingenio {{NOMBRE}}</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="app/iconos/icono-192.png">
 <link rel="apple-touch-icon" href="app/iconos/icono-192.png">
@@ -15,7 +15,7 @@
 <body>
 <header id="cabecera">
   <div class="cab-fila">
-    <div class="cab-titulo"><h1 id="tituloApp">Rutas de muestreo de suelos — Ingenio Manuelita</h1><small id="subtitulo">Cargando…</small></div>
+    <div class="cab-titulo"><h1 id="tituloApp">Rutas de muestreo de suelos — Ingenio {{NOMBRE}}</h1><small id="subtitulo">Cargando…</small></div>
     <button id="chipSync" class="local" title="Estado de la sincronización">…</button>
   </div>
   <div class="filtros">
@@ -57,8 +57,8 @@
 <script src="app/logica.js"></script>
 <script src="app/almacen.js"></script>
 <script src="app/sync.js"></script>
-<script>window.APP_INGENIO = "MANUELITA";</script>
-<script src="data/manuelita.js"></script>
+<script>window.APP_INGENIO = "{{INGENIO}}";</script>
+<script src="data/{{ARCHIVO}}.js"></script>
 <script src="app/app.js"></script>
 </body>
 </html>

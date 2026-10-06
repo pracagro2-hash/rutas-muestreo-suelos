@@ -1,50 +1,77 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Rutas de muestreo de suelos — puntos cLHS</title>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#5E2D91">
+<title>Rutas de muestreo de suelos — puntos cLHS</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="app/iconos/icono-192.png">
+<link rel="apple-touch-icon" href="app/iconos/icono-192.png">
 <style>
- body{margin:0;font-family:Tahoma,Geneva,Verdana,sans-serif;color:#1E293B;background:#F7F7F9}
- header{background:#5E2D91;color:white;padding:22px 16px;text-align:center}
- header h1{margin:0;font-size:24px} header p{margin:6px 0 0;font-size:13px;opacity:.9}
- .wrap{max-width:1100px;margin:auto;padding:18px}
- .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
- .card{background:white;border-radius:10px;padding:16px;box-shadow:0 1px 6px rgba(0,0,0,.12)}
- .card h2{margin:0 0 4px;font-size:20px} .card p{margin:6px 0;font-size:13px} .sede{color:#7A7A7A;font-size:12px!important}
- .btn{display:inline-block;margin:8px 6px 0 0;color:white;padding:7px 12px;border-radius:6px;font-size:13px;text-decoration:none}
- .sec{background:white;color:#5E2D91;border:1px solid #5E2D91}
- .nota{font-size:12px;color:#7A7A7A;margin-top:20px;line-height:1.5}
-</style></head><body>
-<header><h1>Rutas de muestreo de suelos — puntos cLHS</h1>
-<p>Stock de carbono orgánico del suelo · Incauca, Manuelita, Providencia y Castilla</p></header>
-<div class="wrap"><div class="grid">
-    <div class="card" style="border-top:6px solid #00C97E">
-      <h2>Incauca</h2><p class="sede">Sede Incauca (Miranda, Cauca)</p>
-      <p><b>45</b> puntos · <b>12</b> días (15 con contingencia)</p>
-      <p><b>583</b> km · costo ≈ <b>$7.672.819</b></p>
-      <a class="btn" style="background:#00C97E" href="incauca.html">Ver mapa</a>
-      <a class="btn sec" href="rutas_incauca.kml" download>Descargar KML (QField)</a>
-    </div>
-    <div class="card" style="border-top:6px solid #5E2D91">
-      <h2>Manuelita</h2><p class="sede">Ingenio Manuelita (Palmira)</p>
-      <p><b>45</b> puntos · <b>13</b> días (16 con contingencia)</p>
-      <p><b>640</b> km · costo ≈ <b>$8.322.873</b></p>
-      <a class="btn" style="background:#5E2D91" href="manuelita.html">Ver mapa</a>
-      <a class="btn sec" href="rutas_manuelita.kml" download>Descargar KML (QField)</a>
-    </div>
-    <div class="card" style="border-top:6px solid #FFC20E">
-      <h2>Providencia</h2><p class="sede">Ingenio Providencia (El Cerrito)</p>
-      <p><b>45</b> puntos · <b>13</b> días (16 con contingencia)</p>
-      <p><b>680</b> km · costo ≈ <b>$8.356.068</b></p>
-      <a class="btn" style="background:#FFC20E" href="providencia.html">Ver mapa</a>
-      <a class="btn sec" href="rutas_providencia.kml" download>Descargar KML (QField)</a>
-    </div>
-    <div class="card" style="border-top:6px solid #EC3D96">
-      <h2>Castilla</h2><p class="sede">Riopaila Castilla – planta Castilla (Pradera)</p>
-      <p><b>45</b> puntos · <b>14</b> días (17 con contingencia)</p>
-      <p><b>944</b> km · costo ≈ <b>$8.811.395</b></p>
-      <a class="btn" style="background:#EC3D96" href="castilla.html">Ver mapa</a>
-      <a class="btn sec" href="rutas_castilla.kml" download>Descargar KML (QField)</a>
-    </div></div>
-<p class="nota">Cada día sale y regresa a la sede del ingenio; jornada de 9 h con 90 min de muestreo por punto.
-En el mapa cada punto muestra su ID; al tocarlo se ven el día y la parada, la hora estimada de llegada, la suerte, la edad del cultivo
-y el enlace para navegar con Google Maps. El archivo KML contiene la sede, las rutas por día y los puntos con todos sus atributos,
-para cargarlo en QField o Google Earth. Rutas por carretera calculadas con OSRM (OpenStreetMap). Plan generado el 06/10/2026.</p>
-</div></body></html>
+ :root{--morado:#5E2D91;--verde:#00C97E;--texto:#4A4A4A;--gris:#EAEAEA;--muted:#9A9A9A}
+ *{box-sizing:border-box} body{margin:0;font-family:Tahoma,Geneva,Verdana,sans-serif;color:var(--texto);background:#F7F7F9}
+ header{background:var(--morado);color:#fff;padding:calc(20px + env(safe-area-inset-top)) 16px 20px;text-align:center}
+ header h1{margin:0;font-size:22px} header p{margin:6px 0 0;font-size:13px;opacity:.9}
+ .wrap{max-width:1100px;margin:auto;padding:16px}
+ .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+ .card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 6px rgba(0,0,0,.1);border-top:6px solid var(--gris)}
+ .card h2{margin:0 0 4px;font-size:19px} .card p{margin:6px 0;font-size:13px} .sede{color:var(--muted);font-size:12px!important}
+ .barra{height:8px;background:var(--gris);border-radius:4px;overflow:hidden;margin:8px 0 4px} .barra i{display:block;height:100%;background:var(--verde)}
+ .btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;margin:8px 6px 0 0;padding:0 14px;border-radius:10px;
+   font-size:14px;text-decoration:none;color:#fff} .sec{background:#fff;color:var(--morado);border:1px solid var(--morado)}
+ .nota{font-size:12px;color:var(--muted);line-height:1.6;margin-top:18px}
+</style>
+</head>
+<body>
+<header><h1>Rutas de muestreo de suelos</h1><p>Stock de carbono orgánico del suelo · Incauca, Manuelita, Providencia y Castilla</p></header>
+<div class="wrap">
+  <div class="grid" id="tarjetas"></div>
+  <p class="nota">Cada ingenio tiene su aplicación de campo: rutas por día, ubicación GPS en tiempo real, navegación al punto,
+    registro del muestreo (estado, responsable, profundidad, humedad, observaciones y fotografías), estadísticas de avance y
+    funcionamiento sin conexión. El avance mostrado en esta portada corresponde a los registros guardados en este dispositivo
+    (o sincronizados, si la base de datos central está configurada). Rutas por la red vial de OpenStreetMap con callejones,
+    tiempos calibrados con OSRM.</p>
+</div>
+<script src="data/incauca.js"></script>
+<script src="data/manuelita.js"></script>
+<script src="data/providencia.js"></script>
+<script src="data/castilla.js"></script>
+<script>
+(function () {
+  const COLORES = ["#00C97E", "#5E2D91", "#FFC20E", "#EC3D96"];
+  const fmt = (v, d = 0) => Number(v).toLocaleString("es-CO", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const D = window.DATOS_RUTAS || {};
+  const orden = ["INCAUCA", "MANUELITA", "PROVIDENCIA", "CASTILLA"].filter((k) => D[k]);
+  document.getElementById("tarjetas").innerHTML = orden.map((k, i) => {
+    const d = D[k], rutas = d.rutas.features.map((f) => f.properties);
+    const km = rutas.reduce((s, r) => s + r.km, 0), n = d.puntos.features.length, slug = k.toLowerCase();
+    return `<div class="card" style="border-top-color:${COLORES[i % 4]}">
+      <h2>${d.meta.nombre}</h2><p class="sede">Sede: ${d.meta.sede.nombre}</p>
+      <p><b>${n}</b> puntos · <b>${rutas.length}</b> días · <b>${fmt(km)}</b> km</p>
+      <div class="barra"><i id="barra-${slug}" style="width:0"></i></div><p id="avance-${slug}" class="sede">Avance: —</p>
+      <a class="btn" style="background:${COLORES[i % 4]}" href="${slug}.html">Abrir mapa</a>
+      <a class="btn sec" href="rutas_${slug}.kml" download>KML (QField)</a></div>`;
+  }).join("");
+  // Avance real según los registros guardados en este dispositivo (IndexedDB de la aplicación)
+  const sol = indexedDB.open("rutas_muestreo_suelos", 1);
+  sol.onupgradeneeded = () => { sol.transaction.abort(); };
+  sol.onsuccess = () => {
+    const bd = sol.result;
+    if (!bd.objectStoreNames.contains("registros")) return;
+    const r = bd.transaction("registros").objectStore("registros").getAll();
+    r.onsuccess = () => {
+      for (const k of orden) {
+        const ids = new Set(D[k].puntos.features.map((f) => f.properties.id));
+        const hechos = r.result.filter((x) => x.ingenio === k && ids.has(x.punto_id) && x.estado === "realizado").length;
+        const pct = ids.size ? hechos / ids.size * 100 : 0;
+        document.getElementById("barra-" + k.toLowerCase()).style.width = pct + "%";
+        document.getElementById("avance-" + k.toLowerCase()).textContent = `Avance: ${hechos}/${ids.size} realizados (${Math.round(pct)} %)`;
+      }
+    };
+  };
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>
