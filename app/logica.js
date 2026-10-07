@@ -6,10 +6,13 @@
   "use strict";
 
   const ESTADOS = {
-    pendiente: { etiqueta: "Pendiente", color: "#5E2D91", icono: "○" },
-    en_camino: { etiqueta: "En camino", color: "#59CBE8", icono: "➜" },
-    realizado: { etiqueta: "Realizado", color: "#00C97E", icono: "✓" },
-    inconveniente: { etiqueta: "Con inconvenientes", color: "#EC3D96", icono: "!" },
+    // color: círculo del marcador; suave: fondo de etiquetas y tarjetas; svg: ícono blanco (viewBox 0 0 24 24)
+    pendiente: { etiqueta: "Pendiente", color: "#9E9E9E", suave: "#F1F1F3", icono: "○",
+      svg: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7z" },
+    en_camino: { etiqueta: "En camino", color: "#2F80ED", suave: "#E6F0FD", icono: "➜",
+      svg: "M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" },
+    realizado: { etiqueta: "Realizado", color: "#00B574", suave: "#E2F7EE", icono: "✓", svg: "M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" },
+    inconveniente: { etiqueta: "Con inconvenientes", color: "#EC3D96", suave: "#FDE7F1", icono: "!", svg: "M10.6 5h2.8l-.4 9.5h-2zM10.5 16.5h3v3h-3z" },
   };
   const CAMPOS_EDITABLES = ["estado", "borrador", "fecha_hora_muestreo", "responsable", "profundidad",
     "humedad_suelo", "observaciones", "fotos"];

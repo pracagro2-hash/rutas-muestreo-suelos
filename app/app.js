@@ -15,6 +15,9 @@
   const fechaHora = (iso) => iso ? new Date(iso).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" }) : "—";
   const ahora = () => new Date().toISOString();
   const E = Logica.ESTADOS;
+  const icoEstado = (e, tam = 16) => `<svg viewBox="0 0 24 24" width="${tam}" height="${tam}" aria-hidden="true"><path fill="#fff" d="${E[e].svg}"/></svg>`;
+  const circuloEstado = (e, tam = 34) => `<span class="circ-estado" style="width:${tam}px;height:${tam}px;background:${E[e].color}">${icoEstado(e, Math.round(tam * .55))}</span>`;
+  const pildoraEstado = (e) => `<span class="pildora" style="background:${E[e].suave};color:${E[e].color === "#9E9E9E" ? "#4A4A4A" : E[e].color}">${E[e].etiqueta}</span>`;
 
   if (!DATOS) { document.body.innerHTML = "<p style='padding:20px'>No se encontraron los datos de este ingenio.</p>"; return; }
 
@@ -35,7 +38,7 @@
 
   // ---------------- Encabezado ----------------
   document.title = `Rutas de muestreo de suelos — Ingenio ${META.nombre}`;
-  $("#tituloApp").textContent = `Rutas de muestreo de suelos — Ingenio ${META.nombre}`;
+  $("#tituloApp").innerHTML = `Rutas de muestreo de suelos<span class="oculto"> — Ingenio ${esc(META.nombre)}</span>`;
   $("#selDia").innerHTML = `<option value="todos">Todos los días</option>` +
     RUTAS.map((r) => `<option value="${r.dia}">Día ${r.dia} · ${r.n_puntos} puntos</option>`).join("");
   $("#selEstado").innerHTML = `<option value="todos">Todos los estados</option>` +
@@ -69,7 +72,8 @@
     const e = estadoDe(p.id);
     const sel = seleccionado === p.id ? " sel" : "";
     return L.divIcon({ className: "", iconSize: [0, 0],
-      html: `<div class="etq${sel}" style="background:${E[e].color};border-color:${COLORES[p.dia]}">${e === "realizado" ? "✓ " : e === "inconveniente" ? "! " : ""}${esc(p.id)}</div>` });
+      html: `<div class="etq${sel}" data-estado="${e}"><span class="mk-ico" style="background:${E[e].color}">${icoEstado(e, 15)}</span>` +
+        `<span class="mk-id" style="border-left-color:${COLORES[p.dia]}">${esc(p.id)}</span></div>` });
   }
   PUNTOS.forEach((p) => {
     marcadores[p.id] = L.marker([p.lat, p.lon], { icon: icono(p), riseOnHover: true, keyboard: true, title: p.id })
@@ -229,7 +233,7 @@
     const base = dia || { total: st.total, realizado: st.porEstado.realizado, avance: st.avance };
     $("#barraAvance").innerHTML = `${dia ? `Día ${dia.dia}` : "Avance general"}: <b>${base.realizado}/${base.total}</b> realizados (${Math.round(base.avance * 100)} %)` +
       `<div class="barra"><i style="width:${base.avance * 100}%"></i></div>`;
-    $("#subtitulo").textContent = `${st.porEstado.realizado}/${st.total} realizados · ${RUTAS.length} días · ${coma(st.km_total, 0)} km`;
+    $("#subtitulo").textContent = `Ingenio ${META.nombre} · ${st.porEstado.realizado}/${st.total} realizados · ${coma(st.km_total, 0)} km`;
   }
 
   // ---------------- Ficha del punto ----------------
@@ -267,7 +271,7 @@
         <div class="botones-dobles" style="margin-top:8px"><button class="btn morado" id="usarMios">Usar mis datos</button>
         <button class="btn borde" id="usarServidor">Usar los del servidor</button></div></div>` : "";
     $("#ficha").innerHTML = `
-      <div class="ficha-cab"><h2>${esc(p.id)}</h2><span class="chip-estado" style="background:${E[e].color}">${E[e].etiqueta}${r.borrador ? " · borrador" : ""}</span>
+      <div class="ficha-cab"><h2>${esc(p.id)}</h2><span class="chip-estado" style="background:${E[e].suave};color:${e === "pendiente" ? "#4A4A4A" : E[e].color}">${E[e].etiqueta}${r.borrador ? " · borrador" : ""}</span>
         <button class="cerrar" id="cerrarFicha" aria-label="Cerrar">×</button></div>
       ${conflicto}
       <div class="datos">
@@ -281,7 +285,7 @@
         <div style="grid-column:1/-1"><span>Coordenadas (WGS84)</span>${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</div>
       </div>
       <div class="estados" role="group" aria-label="Estado">
-        ${Object.entries(E).map(([k, v]) => `<button data-estado="${k}" class="${e === k ? "on" : ""}" style="${e === k ? `background:${v.color};border-color:${v.color}` : `border-color:${v.color}`}" ${bloqueado && k !== e ? "disabled" : ""}>${v.icono}<br>${v.etiqueta}</button>`).join("")}
+        ${Object.entries(E).map(([k, v]) => `<button data-estado="${k}" class="${e === k ? "on" : ""}" style="background:${v.suave};border-color:${e === k ? v.color : "transparent"};color:${k === "pendiente" ? "#4A4A4A" : v.color}" ${bloqueado && k !== e ? "disabled" : ""}>${circuloEstado(k, 28)}<span>${v.etiqueta}</span></button>`).join("")}
       </div>
       <fieldset id="formPunto" ${bloqueado ? "disabled" : ""}>
         <div class="campo"><label for="fFecha">Fecha y hora del muestreo</label><input id="fFecha" type="datetime-local" value="${fechaLocal}"></div>
@@ -450,8 +454,10 @@
           <span class="det">${coma(r.km)} km · viaje ${coma(r.horas_viaje)} h · muestreo ${coma(r.horas_muestreo)} h · regreso ${esc(r.regreso)}</span>
           <span>${hechos === totalDia ? "✅" : `${hechos}/${totalDia}`}</span></header>
         ${pts.map((p) => { const e = estadoDe(p.id); return `<button class="fila-punto" data-id="${esc(p.id)}">
-          <span class="pto" style="background:${E[e].color}"></span><span class="id">${p.orden}. ${esc(p.id)}</span>
-          <span class="meta">${E[e].etiqueta} · llega ${esc(p.hora_llegada)}–${esc(p.hora_salida)} · suerte ${esc(p.suerte)}</span><span class="flecha">›</span></button>`; }).join("")}
+          ${circuloEstado(e, 36)}<span class="txt"><span class="id">${p.orden}. ${esc(p.id)}</span>
+          <span class="meta">Suerte ${esc(p.suerte)} · ${coma(p.edad_meses)} meses</span>
+          <span class="meta">${esc(p.hora_llegada)}–${esc(p.hora_salida)} · ${coma(p.km_desde_anterior)} km desde la parada anterior</span></span>
+          ${pildoraEstado(e)}<span class="flecha">›</span></button>`; }).join("")}
       </section>`;
     }).join("");
     $("#listaPuntos").innerHTML = html || "<p class='nota'>No hay puntos con los filtros seleccionados.</p>";
@@ -463,16 +469,24 @@
   // ---------------- Estadísticas ----------------
   function pintarEstadisticas() {
     const st = Logica.estadisticas(PUNTOS, REG, RUTAS), pe = st.porEstado, pc = (x) => `${Math.round(x * 100)} %`;
-    const tarjeta = (n, t, c) => `<div class="tarjeta" style="border-top-color:${c}"><b>${n}</b><span>${t}</span></div>`;
+    const tarjeta = (n, t, k) => `<div class="tarjeta" data-estado="${k}" style="background:${E[k].suave}">${circuloEstado(k, 30)}<b>${n}</b><span>${t}</span></div>`;
+    const ang = Math.round(st.avance * 360);
     $("#vistaEstadisticas .contenido").innerHTML = `<h2>Estadísticas del muestreo</h2>
-      <div class="tarjetas">
-        ${tarjeta(st.total, "Total de puntos", "var(--morado)")}${tarjeta(pe.realizado, "Realizados", E.realizado.color)}
-        ${tarjeta(pe.pendiente, "Pendientes", E.pendiente.color)}${tarjeta(pe.en_camino, "En camino", E.en_camino.color)}
-        ${tarjeta(pe.inconveniente, "Con inconvenientes", E.inconveniente.color)}${tarjeta(pc(st.avance), "Avance", "var(--verde)")}
+      <div class="avance-total">
+        <span>Avance total</span>
+        <div class="anillo" style="background:conic-gradient(var(--verde) ${ang}deg, #ECECEF ${ang}deg)"><i>${coma(st.avance * 100)} %</i></div>
+        <div><b>${pe.realizado} de ${st.total}</b><span>puntos realizados</span></div>
       </div>
-      <h3>Avance general</h3>
-      <div class="progreso">${["realizado", "en_camino", "inconveniente"].map((k) => `<i style="width:${st.total ? pe[k] / st.total * 100 : 0}%;background:${E[k].color}"></i>`).join("")}</div>
-      <h3>Avance por día</h3>
+      <div class="tarjetas">
+        ${tarjeta(pe.realizado, "Realizados", "realizado")}${tarjeta(pe.pendiente, "Pendientes", "pendiente")}
+        ${tarjeta(pe.en_camino, "En camino", "en_camino")}${tarjeta(pe.inconveniente, "Inconvenientes", "inconveniente")}
+      </div>
+      <h3>Plan por día</h3>
+      <div class="plan-dias">${st.dias.map((d) => `<button class="plan-dia" data-dia="${d.dia}"><span class="sw" style="background:${COLORES[d.dia]}"></span>
+          <span class="pd-txt"><span>Día ${d.dia}</span><small>${coma(d.km)} km · ${coma(d.horas_totales)} h · regreso ${esc(d.regreso || "—")}</small></span>
+          <span class="pd-barra"><i style="width:${d.avance * 100}%;background:${COLORES[d.dia]}"></i></span>
+          <span class="pd-n">${d.realizado}/${d.total}</span><span class="flecha">›</span></button>`).join("")}</div>
+      <h3>Detalle por día</h3>
       <div class="tabla-env"><table class="tabla"><thead><tr><th>Día</th><th>Realizados</th><th>Avance</th><th>Pend.</th><th>Inconv.</th><th>Km</th><th>H. viaje</th><th>H. muestreo</th><th>H. total</th><th>Regreso</th></tr></thead><tbody>
         ${st.dias.map((d) => `<tr><td><span class="pto" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${COLORES[d.dia]}"></span> ${d.dia}</td>
           <td>${d.realizado}/${d.total}</td><td>${pc(d.avance)}</td><td>${d.pendiente + d.en_camino}</td><td>${d.inconveniente}</td>
@@ -483,6 +497,9 @@
       <p class="nota">Las distancias y los tiempos son los del plan de rutas (${esc(META.metodo_rutas)}), con salida a las ${esc(META.hora_salida)}
         y jornada máxima de ${coma(META.jornada_h, 0)} h; incluyen factores de riesgo de transporte y de campo. Los estados se calculan con los registros
         guardados${Sync.configurado ? " y sincronizados" : " en este celular"}. Plan generado el ${esc(META.generado)}.</p>`;
+    document.querySelectorAll(".plan-dia").forEach((b) => {
+      b.onclick = () => { filtroDia = b.dataset.dia; $("#selDia").value = filtroDia; mostrarVista("mapa"); pintarTodo(true); };
+    });
   }
 
   // ---------------- Más ----------------
@@ -495,8 +512,8 @@
     $("#vistaMas .contenido").innerHTML = `<h2>Más opciones</h2>
       <h3>Leyenda</h3>
       <div class="leyenda">
-        ${Object.values(E).map((v) => `<div><span class="mues" style="background:${v.color}">${v.icono} ${ej}</span>${v.etiqueta}</div>`).join("")}
-        <div><span class="mues" style="background:${E.pendiente.color};border-color:${COLORES[RUTAS[0].dia]}">${ej}</span>El borde indica el día de la ruta</div>
+        ${Object.keys(E).map((k) => `<div><span class="ley-ico">${circuloEstado(k, 28)}</span>${E[k].etiqueta}</div>`).join("")}
+        <div><span class="ley-ico"><span class="mk-id" style="border-left-color:${COLORES[RUTAS[0].dia]};position:static">${ej}</span></span>El color del borde de la etiqueta indica el día</div>
         ${RUTAS.map((r) => `<div><span class="linea" style="background:${COLORES[r.dia]}"></span>Ruta del día ${r.dia}</div>`).join("")}
         <div><span class="ley-ico">${ICONO_SEDE}</span>Sede del ingenio (salida y regreso)</div>
         <div><span class="ley-ico">${FLECHA_GPS.replace(" sin-rumbo", "")}</span>Mi ubicación: el triángulo apunta hacia donde avanzo</div>

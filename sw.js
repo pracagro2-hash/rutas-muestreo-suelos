@@ -5,7 +5,7 @@
  * - Base de datos (Supabase): nunca se guarda en caché.
  * Al publicar cambios en el código, incremente VERSION para que los celulares descarguen la versión nueva.
  */
-const VERSION = "rutas-muestreo-v2-2026-10-06";
+const VERSION = "rutas-muestreo-v3-2026-10-06";
 const CACHE_APP = `app-${VERSION}`;
 const CACHE_TESELAS = "teselas-mapa";
 const MAX_TESELAS = 4000;
