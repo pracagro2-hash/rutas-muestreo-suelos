@@ -68,6 +68,17 @@
     capaRutas[r.dia] = L.polyline(r.coords, { color: COLORES[r.dia], weight: 5, opacity: .85 })
       .bindPopup(`<b>Día ${r.dia}</b><br>${esc(r.ids)}<br>${coma(r.km)} km · viaje ${coma(r.horas_viaje)} h · muestreo ${coma(r.horas_muestreo)} h<br>Regreso estimado ${esc(r.regreso)}`);
   });
+  // Peajes de la zona del ingenio: resaltados los que cruzan las rutas del plan (mismo criterio del costo)
+  const ICONO_PEAJE = "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M15 4c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zM3 12c0-2.61 1.67-4.83 4-5.65V4.26C3.55 5.15 1 8.27 1 12s2.55 6.85 6 7.74v-2.09c-2.33-.82-4-3.04-4-5.65z'/></svg>";
+  const htmlPeaje = (cruza) => `<div class="peaje-ico${cruza ? " cruza" : ""}">${ICONO_PEAJE}</div>`;
+  const pesos = (v) => "$" + Number(v || 0).toLocaleString("es-CO");
+  const PEAJES = ((DATOS.peajes || {}).features || []).map((f) => Object.assign({}, f.properties,
+    { lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] }));
+  const marcasPeaje = PEAJES.map((pj) => L.marker([pj.lat, pj.lon], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: htmlPeaje(pj.dias.length > 0) }),
+    zIndexOffset: pj.dias.length ? 300 : 0, title: `Peaje ${pj.nombre}` })
+    .bindPopup(`<b>Peaje ${esc(pj.nombre)}</b><br>Vía ${esc(pj.via || "—")} · ${esc(pj.administra || "—")}${pj.sentido ? `<br>${pj.sentido === "Ambos" ? "Cobra en ambos sentidos" : `Cobra en sentido ${esc(pj.sentido)}`}` : ""}` +
+      `<br>${pj.dias.length ? `Lo cruzan las rutas de ${pj.dias.length === 1 ? "el día" : "los días"} ${pj.dias.join(", ")}` : "Ninguna ruta del plan pasa por este peaje"}` +
+      `<br>Tarifa usada en el plan: ${pesos(pj.tarifa_cop)} por paso`));
   function icono(p) {
     const e = estadoDe(p.id);
     const sel = seleccionado === p.id ? " sel" : "";
@@ -86,6 +97,10 @@
     RUTAS.forEach((r) => {
       const ver = filtroDia === "todos" || String(r.dia) === String(filtroDia);
       ver ? capaRutas[r.dia].addTo(mapa) : mapa.removeLayer(capaRutas[r.dia]);
+    });
+    PEAJES.forEach((pj, i) => {
+      const ver = filtroDia === "todos" || pj.dias.includes(Number(filtroDia));
+      ver ? marcasPeaje[i].addTo(mapa) : mapa.removeLayer(marcasPeaje[i]);
     });
     PUNTOS.forEach((p) => {
       const m = marcadores[p.id];
@@ -495,7 +510,7 @@
       </div>
       <h3>Plan por día</h3>
       <div class="plan-dias">${st.dias.map((d) => `<button class="plan-dia" data-dia="${d.dia}"><span class="sw" style="background:${COLORES[d.dia]}"></span>
-          <span class="pd-txt"><span>Día ${d.dia}</span><small>${coma(d.km)} km · ${coma(d.horas_totales)} h · regreso ${esc(d.regreso || "—")}</small></span>
+          <span class="pd-txt"><span>Día ${d.dia}</span><small>${coma(d.km)} km · ${coma(d.horas_totales)} h · regreso ${esc(d.regreso || "—")}${(RUTAS.find((r) => r.dia === d.dia) || {}).peajes ? ` · ${RUTAS.find((r) => r.dia === d.dia).peajes} peaje(s)` : ""}</small></span>
           <span class="pd-barra"><i style="width:${d.avance * 100}%;background:${COLORES[d.dia]}"></i></span>
           <span class="pd-n">${d.realizado}/${d.total}</span><span class="flecha">›</span></button>`).join("")}</div>
       <h3>Detalle por día</h3>
@@ -530,6 +545,8 @@
         <div><span class="ley-ico">${ICONO_SEDE}</span>Sede del ingenio (salida y regreso)</div>
         <div><span class="ley-ico">${FLECHA_GPS.replace(" sin-rumbo", "")}</span>Mi ubicación: el triángulo apunta hacia donde avanzo</div>
         <div><span class="ley-ico"><span class="linea" style="background:repeating-linear-gradient(90deg,#fff 0 7px,transparent 7px 12px);outline:2px solid #4A4A4A"></span></span>Mi recorrido de hoy (GPS)</div>
+        ${PEAJES.length ? `<div><span class="ley-ico">${htmlPeaje(true)}</span>Peaje por el que pasa alguna ruta (al tocarlo muestra los días)</div>
+        <div><span class="ley-ico">${htmlPeaje(false)}</span>Peaje cercano por el que no pasa ninguna ruta</div>` : ""}
       </div>
       <h3>Mi recorrido GPS</h3>
       <p class="nota" id="resumenRecorrido">Calculando…</p>

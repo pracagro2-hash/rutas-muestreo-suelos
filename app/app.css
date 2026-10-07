@@ -73,6 +73,12 @@ button { cursor: pointer; }
 .gps-flecha svg { width: 100%; height: 100%; }
 .gps-flecha path { fill: var(--morado); stroke: #fff; stroke-width: 3; stroke-linejoin: round; }
 .gps-flecha.sin-rumbo path { fill: var(--turquesa); }
+.peaje-ico { width: 24px; height: 24px; border-radius: 7px; background: #fff; border: 2px solid var(--amarillo); display: flex; align-items: center;
+  justify-content: center; transform: translate(-50%, -50%); box-shadow: 0 1px 4px rgba(0,0,0,.45); opacity: .85; }
+.peaje-ico svg { width: 15px; height: 15px; fill: #9A7400; }
+.peaje-ico.cruza { width: 30px; height: 30px; background: var(--amarillo); border-color: #fff; opacity: 1; }
+.peaje-ico.cruza svg { width: 19px; height: 19px; fill: #4A4A4A; }
+.ley-ico .peaje-ico { transform: none; }
 .ley-ico { min-width: 64px; display: flex; justify-content: center; }
 .ley-ico .sede-ico, .ley-ico .gps-flecha { transform: none; }
 
