@@ -193,6 +193,35 @@ grant execute on function public.guardar_registro(text, text, integer, jsonb) to
 grant execute on function public.es_autorizado() to authenticated;
 
 -- ---------------------------------------------------------------------------
+-- Recorrido GPS real de los equipos (para calibrar los tiempos del modelo de rutas).
+-- Solo se agregan ubicaciones; no se modifican ni se borran desde la aplicación.
+-- ---------------------------------------------------------------------------
+create table if not exists public.recorridos_gps (
+  id            bigint generated always as identity primary key,
+  ingenio       text not null,
+  tramo         text not null,
+  fecha_hora    timestamptz not null,
+  lat           double precision not null check (lat between -90 and 90),
+  lon           double precision not null check (lon between -180 and 180),
+  precision_m   real,
+  velocidad_ms  real,
+  rumbo         real,
+  responsable   text,
+  usuario_email text default lower(auth.jwt() ->> 'email'),
+  geom          extensions.geometry(Point, 4326) generated always as (extensions.st_setsrid(extensions.st_makepoint(lon, lat), 4326)) stored,
+  unique (tramo, fecha_hora)
+);
+create index if not exists recorridos_gps_ingenio_idx on public.recorridos_gps (ingenio, fecha_hora);
+alter table public.recorridos_gps enable row level security;
+drop policy if exists "leer recorridos" on public.recorridos_gps;
+create policy "leer recorridos" on public.recorridos_gps
+  for select to authenticated using (public.es_autorizado());
+drop policy if exists "agregar recorridos" on public.recorridos_gps;
+create policy "agregar recorridos" on public.recorridos_gps
+  for insert to authenticated with check (public.es_autorizado());
+revoke all on public.recorridos_gps from anon;
+
+-- ---------------------------------------------------------------------------
 -- Fotografías: bucket privado; solo usuarios autorizados suben y ven
 -- ---------------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

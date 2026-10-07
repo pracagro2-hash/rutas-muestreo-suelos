@@ -285,7 +285,7 @@
         <div style="grid-column:1/-1"><span>Coordenadas (WGS84)</span>${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</div>
       </div>
       <div class="estados" role="group" aria-label="Estado">
-        ${Object.entries(E).map(([k, v]) => `<button data-estado="${k}" class="${e === k ? "on" : ""}" style="background:${v.suave};border-color:${e === k ? v.color : "transparent"};color:${k === "pendiente" ? "#4A4A4A" : v.color}" ${bloqueado && k !== e ? "disabled" : ""}>${circuloEstado(k, 28)}<span>${v.etiqueta}</span></button>`).join("")}
+        ${Object.entries(E).map(([k, v]) => `<button data-estado="${k}" class="${e === k ? "on" : ""}" style="background:${v.suave};border-color:${e === k ? v.color : "transparent"};color:${k === "pendiente" ? "#4A4A4A" : v.color}" title="${bloqueado && k !== e ? "Cambiar el estado (se pedirá confirmación)" : v.etiqueta}">${circuloEstado(k, 28)}<span>${v.etiqueta}</span></button>`).join("")}
       </div>
       <fieldset id="formPunto" ${bloqueado ? "disabled" : ""}>
         <div class="campo"><label for="fFecha">Fecha y hora del muestreo</label><input id="fFecha" type="datetime-local" value="${fechaLocal}"></div>
@@ -317,7 +317,7 @@
     $("#bCentrar").onclick = () => { cerrarFicha(); mostrarVista("mapa"); seguir = false; pintarBotonGps(); mapa.setView([p.lat, p.lon], 17); };
     $("#ficha").querySelectorAll(".estados button").forEach((b) => { b.onclick = () => cambiarEstado(b.dataset.estado); });
     if ($("#bEditar")) $("#bEditar").onclick = () => { editando = true; pintarFicha(); };
-    if ($("#bRealizado")) $("#bRealizado").onclick = () => guardar(Object.assign(leerFormulario(), { estado: "realizado", borrador: false }), "Punto marcado como realizado");
+    if ($("#bRealizado")) $("#bRealizado").onclick = marcarRealizado;
     if ($("#bBorrador")) $("#bBorrador").onclick = () => guardar(Object.assign(leerFormulario(), { borrador: true }), "Borrador guardado");
     if ($("#bInconv")) $("#bInconv").onclick = () => {
       const datos = leerFormulario();
@@ -371,8 +371,20 @@
       Sync.sincronizar();
     } catch (err) { toast(err.message || "No se pudo guardar"); }
   }
+  // Marcar como realizado y deshacer un "Realizado" siempre piden confirmación; el cambio queda en el historial.
+  function marcarRealizado() {
+    if (!confirm(`¿Está seguro de que ya tomó la muestra en ${seleccionado}?\n\nEl punto quedará como Realizado.`)) return;
+    return guardar(Object.assign(leerFormulario(), { estado: "realizado", borrador: false }), "Punto marcado como realizado");
+  }
   function cambiarEstado(estado) {
-    if (estado === "realizado") return guardar(Object.assign(leerFormulario(), { estado, borrador: false }), "Punto marcado como realizado");
+    const actual = estadoDe(seleccionado);
+    if (estado === actual) return;
+    if (actual === "realizado") {
+      if (!confirm(`¿Está seguro de cambiar ${seleccionado} de "Realizado" a "${E[estado].etiqueta}"?\n\nLos datos registrados se conservan y el cambio queda en el historial.`)) return;
+      if (estado === "inconveniente") { editando = true; pintarFicha(); return $("#bInconv").click(); }
+      return guardar(Object.assign(leerFormulario(), { estado }), `${seleccionado} ahora está ${E[estado].etiqueta.toLowerCase()}`);
+    }
+    if (estado === "realizado") return marcarRealizado();
     if (estado === "inconveniente") return $("#bInconv") ? $("#bInconv").click() : null;
     return guardar(Object.assign(leerFormulario(), { estado }), `Estado: ${E[estado].etiqueta}`);
   }

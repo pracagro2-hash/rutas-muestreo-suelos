@@ -39,13 +39,13 @@ estimación del **stock de carbono orgánico del suelo (COS)** en áreas cultiva
 <!-- RESUMEN_PLAN_INICIO -->
 | Ingenio | Sede (salida y regreso) | Puntos | Días (con contingencia) | Km | Horas de viaje | Horas de muestreo | Costo con contingencia (COP) |
 |---|---|---|---|---|---|---|---|
-| [Incauca](https://pracagro2-hash.github.io/rutas-muestreo-suelos/incauca.html) | Sede Incauca (Miranda, Cauca) | 45 | 12 (15) | 583 | 21,1 | 78,0 | $7.672.819 |
+| [Incauca](https://pracagro2-hash.github.io/rutas-muestreo-suelos/incauca.html) | Sede Incauca (Miranda, Cauca) | 45 | 12 (15) | 557 | 20,1 | 78,1 | $7.662.389 |
 | [Manuelita](https://pracagro2-hash.github.io/rutas-muestreo-suelos/manuelita.html) | Ingenio Manuelita (Palmira) | 45 | 13 (16) | 640 | 23,3 | 80,4 | $8.322.873 |
 | [Providencia](https://pracagro2-hash.github.io/rutas-muestreo-suelos/providencia.html) | Ingenio Providencia (El Cerrito) | 45 | 13 (16) | 680 | 23,5 | 79,9 | $8.356.068 |
 | [Castilla](https://pracagro2-hash.github.io/rutas-muestreo-suelos/castilla.html) | Riopaila Castilla – planta Castilla (Pradera) | 45 | 14 (17) | 944 | 30,1 | 80,7 | $8.811.395 |
-| **Total** | | **180** | **52 (64)** | **2.848** | | | **$33.163.154** |
+| **Total** | | **180** | **52 (64)** | **2.822** | | | **$33.152.724** |
 
-_Plan generado el 06/10/2026 · jornada máxima 9 h · 90 min de muestreo por punto · red vial de OpenStreetMap con callejones, tiempos calibrados con OSRM._
+_Plan generado el 07/10/2026 · jornada máxima 9 h · 90 min de muestreo por punto · red vial de OpenStreetMap con callejones, tiempos calibrados con OSRM._
 <!-- RESUMEN_PLAN_FIN -->
 
 ## Metodología del plan de rutas
