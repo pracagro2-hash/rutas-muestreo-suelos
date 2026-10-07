@@ -7,7 +7,10 @@
   "use strict";
   const NOMBRE_BD = "rutas_muestreo_suelos";
   const VERSION_BD = 2;   // v2: almacén "recorrido" (ubicaciones GPS registradas en campo)
-  let bdPromesa = null;
+  let bdPromesa = null, conexion = null;
+  function olvidar(bd) {
+    if (!bd || bd === conexion) { bdPromesa = null; conexion = null; }
+  }
 
   function abrir() {
     if (bdPromesa) return bdPromesa;
@@ -28,23 +31,56 @@
           bd.createObjectStore("recorrido", { keyPath: "id", autoIncrement: true }).createIndex("ingenio", "ingenio");
         }
       };
-      sol.onsuccess = () => resolver(sol.result);
-      sol.onerror = () => rechazar(sol.error);
+      let resuelta = false;
+      sol.onsuccess = () => {
+        const bd = sol.result;
+        if (resuelta) { bd.close(); return; }   // llegó tarde (la apertura ya se había dado por bloqueada)
+        resuelta = true;
+        // El navegador puede cerrar la conexión (celular en segundo plano, otra pestaña con versión nueva):
+        // se olvida para que la próxima operación abra una conexión nueva.
+        bd.onversionchange = () => { bd.close(); olvidar(bd); };
+        bd.onclose = () => olvidar(bd);
+        conexion = bd;
+        resolver(bd);
+      };
+      sol.onerror = () => { resuelta = true; bdPromesa = null; rechazar(sol.error); };
+      sol.onblocked = () => {   // otra pestaña con la versión anterior impide actualizar el almacenamiento
+        setTimeout(() => {
+          if (resuelta) return;
+          resuelta = true; bdPromesa = null;
+          rechazar(new Error("Cierre las otras pestañas de esta aplicación y vuelva a abrirla"));
+        }, 4000);
+      };
     });
     // Solicita almacenamiento persistente (evita que el navegador borre los datos por falta de espacio)
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     return bdPromesa;
   }
 
-  function tx(almacenes, modo, trabajo) {
+  // Errores que indican conexión cerrada o perdida (p. ej. iPhone: "Connection to Indexed Database server lost")
+  const conexionPerdida = (e) => !!e && (e.name === "InvalidStateError" || e.name === "UnknownError" ||
+    /connection|closing|closed|lost/i.test(e.message || ""));
+
+  function tx(almacenes, modo, trabajo, reintento = false) {
+    let usada = null;
     return abrir().then((bd) => new Promise((resolver, rechazar) => {
-      const t = bd.transaction(almacenes, modo);
+      usada = bd;
+      const t = bd.transaction(almacenes, modo);   // lanza InvalidStateError si la conexión ya se cerró
       let resultado;
-      Promise.resolve(trabajo(t)).then((r) => { resultado = r; });
+      Promise.resolve(trabajo(t)).then((r) => { resultado = r; }, () => {});
       t.oncomplete = () => resolver(resultado);
       t.onerror = () => rechazar(t.error);
-      t.onabort = () => rechazar(t.error);
-    }));
+      t.onabort = () => rechazar(t.error || new Error("Operación cancelada por el navegador"));
+    })).catch((err) => {
+      if (!reintento && conexionPerdida(err)) {
+        // Una transacción abortada no guarda nada: se abre una conexión nueva y se repite una vez
+        try { if (usada) usada.close(); } catch (e) { /* ya cerrada */ }
+        olvidar(usada);
+        return tx(almacenes, modo, trabajo, true);
+      }
+      if (conexionPerdida(err)) throw new Error("No se pudo guardar en el celular. Recargue la página e intente de nuevo.");
+      throw err;
+    });
   }
 
   const req = (r) => new Promise((ok, mal) => { r.onsuccess = () => ok(r.result); r.onerror = () => mal(r.error); });
