@@ -8,6 +8,7 @@
 <script>window.CONFIG_APP = {};</script>
 <script src="../app/logica.js"></script>
 <script src="../app/almacen.js"></script>
+<script src="../app/navegacion.js"></script>
 <script>
 (async function () {
   const fase = new URLSearchParams(location.search).get("fase") || "1";
@@ -59,6 +60,31 @@
       ok(comb.estado === "realizado" && comb.conflicto && comb.conflicto.version === 3, "conflicto: se conservan los datos locales y la copia remota");
       const alDia = Object.assign({}, conPend, { version_remota: 3, conflicto: null });
       ok(Logica.combinarRemoto(alDia, remoto) === alDia, "si el remoto no avanzó se conservan los cambios locales sin conflicto");
+      // --- Navegación: red de prueba (cuadrícula de ~550 m) ---
+      //  3 ──── 2          0→3 es de un solo sentido (solo hacia el norte)
+      //  ↑      │
+      //  0 ──── 1 ──── 4
+      const N = (la, lo) => [Math.round(la * 1e6), Math.round(lo * 1e6)];
+      const redPrueba = Navegacion.cargarRed({ f_cal: 1, tipos: ["track", "tertiary"], nombres: ["Vía Rozo"],
+        nodos: [...N(3.5, -76.3), ...N(3.5, -76.295), ...N(3.505, -76.295), ...N(3.505, -76.3), ...N(3.5, -76.29)],
+        aristas: [[0, 1, 3, 555, 500, 1, 0, []], [1, 2, 3, 555, 500, 0, -1, []], [0, 3, 1, 553, 500, 0, -1, []],
+                  [3, 2, 3, 555, 500, 0, -1, []], [1, 4, 3, 555, 300, 1, 0, []]] });
+      const rA = Navegacion.calcularRuta(redPrueba, [3.49995, -76.299], [3.504, -76.29495]);
+      ok(rA && Math.abs(rA.segundos - 81) < 3, `elige la ruta más rápida (${rA && rA.segundos.toFixed(0)} s ≈ 81 s por el cruce 1)`);
+      ok(rA && rA.maniobras.length === 1 && rA.maniobras[0].tipo === "izquierda" && Math.abs(rA.maniobras[0].s - 455) < 25,
+        `anuncia "gire a la izquierda" en el cruce correcto (${rA && rA.maniobras.map((m) => m.tipo + "@" + m.s.toFixed(0)).join(", ")})`);
+      ok(Navegacion.textoManiobra(rA.maniobras[0]) === "Gire a la izquierda por el callejón", "instrucción con el tipo de vía: " + Navegacion.textoManiobra(rA.maniobras[0]));
+      const rB = Navegacion.calcularRuta(redPrueba, [3.5045, -76.30005], [3.5001, -76.29995]);
+      ok(rB && rB.metros > 1500, `respeta el sentido único: no baja por 0→3, da la vuelta (${rB && rB.metros.toFixed(0)} m)`);
+      const rC = Navegacion.calcularRuta(redPrueba, [3.5, -76.299], [3.5, -76.297]);
+      ok(rC && Math.abs(rC.metros - 222) < 10 && rC.maniobras.length === 0, `origen y destino en la misma vía (${rC && rC.metros.toFixed(0)} m, sin giros)`);
+      const enRuta = Navegacion.ubicarEnRuta(rA, [3.50001, -76.296], 0), fuera = Navegacion.ubicarEnRuta(rA, [3.498, -76.297], 0);
+      ok(enRuta.d < 5 && Math.abs(enRuta.s - 333) < 15 && fuera.d > 150, `sigue la posición sobre la ruta (s=${enRuta.s.toFixed(0)} m) y detecta desvíos (${fuera.d.toFixed(0)} m)`);
+      const est = Navegacion.estadoEn(rA, enRuta.s);
+      ok(est.maniobra.tipo === "izquierda" && Math.abs(est.distanciaManiobra - 122) < 20 && est.segundosRestantes < rA.segundos,
+        `siguiente giro a ${est.distanciaManiobra.toFixed(0)} m; tiempo restante ${est.segundosRestantes.toFixed(0)} s`);
+      ok(Navegacion.textoDistancia(1234) === "1,2 km" && Navegacion.textoDistancia(234) === "250 m" && Navegacion.textoDistancia(42) === "40 m", "distancias redondeadas para la voz y la pantalla");
+      ok(Navegacion.calcularRuta(redPrueba, [3.6, -76.3], [3.5, -76.299]) === null, "sin vía a menos de 3 km del origen no inventa una ruta");
       // --- Persistencia (escritura) ---
       await Almacen.borrarIngenio(ING);
       await Almacen.guardarRegistro(r1d);

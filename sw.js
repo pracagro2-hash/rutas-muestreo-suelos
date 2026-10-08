@@ -5,14 +5,14 @@
  * - Base de datos (Supabase): nunca se guarda en caché.
  * Al publicar cambios en el código, incremente VERSION para que los celulares descarguen la versión nueva.
  */
-const VERSION = "rutas-muestreo-v6-2026-10-07";
+const VERSION = "rutas-muestreo-v7-2026-10-08";
 const CACHE_APP = `app-${VERSION}`;
 const CACHE_TESELAS = "teselas-mapa";
 const MAX_TESELAS = 4000;
 const INGENIOS = ["incauca", "manuelita", "providencia", "castilla"];
 const NUCLEO = [
   "./", "index.html", "manifest.webmanifest",
-  "app/app.css", "app/app.js", "app/config.js", "app/logica.js", "app/almacen.js", "app/sync.js",
+  "app/app.css", "app/app.js", "app/config.js", "app/logica.js", "app/almacen.js", "app/sync.js", "app/navegacion.js",
   "app/iconos/icono-192.png", "app/iconos/icono-512.png",
   ...INGENIOS.flatMap((i) => [`${i}.html`, `data/${i}.js`, `rutas_${i}.kml`]),
 ];

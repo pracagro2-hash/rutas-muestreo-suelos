@@ -18,6 +18,11 @@ estimación del **stock de carbono orgánico del suelo (COS)** en áreas cultiva
 - **Mapa satelital** (o de calles) con las rutas de cada día en su color y cada punto identificado por su ID.
 - **Ubicación GPS en tiempo real**: triángulo que apunta en la dirección de avance, círculo de precisión y modo *seguirme*;
   distancia del usuario a cada punto.
+- **Navegación tipo Waze desde la ubicación del celular:** botón *Iniciar ruta* (o *Navegar a este punto* en la ficha).
+  La ruta más rápida se calcula **en el celular, sin internet**, sobre la misma red vial del plan (incluye callejones
+  cañeros y caminos de finca) con los tiempos calibrados; muestra el siguiente giro, distancia, tiempo y hora de llegada,
+  da instrucciones por voz, **recalcula si se desvía**, avisa la llegada y cuánto caminar hasta el punto, y continúa con
+  el siguiente pendiente. Alternativas: Google Maps (con todas las paradas pendientes del día) y Waze.
 - **Registro del recorrido real**: mientras la ubicación está activa se guarda en el celular cada desplazamiento (≥ 10 m o
   cada 30 s, con hora, velocidad y precisión), se dibuja en el mapa y se exporta a GeoJSON para calibrar los tiempos del modelo de rutas.
 - **Filtros** por día y por estado; botones para ver todas las rutas y para ir al **siguiente punto pendiente**.
@@ -45,7 +50,7 @@ estimación del **stock de carbono orgánico del suelo (COS)** en áreas cultiva
 | [Castilla](https://pracagro2-hash.github.io/rutas-muestreo-suelos/castilla.html) | Riopaila Castilla – planta Castilla (Pradera) | 45 | 14 (17) | 944 | 30,1 | 80,7 | $8.811.395 |
 | **Total** | | **180** | **52 (64)** | **2.822** | | | **$33.152.724** |
 
-_Plan generado el 07/10/2026 · jornada máxima 9 h · 90 min de muestreo por punto · red vial de OpenStreetMap con callejones, tiempos calibrados con OSRM._
+_Plan generado el 08/10/2026 · jornada máxima 9 h · 90 min de muestreo por punto · red vial de OpenStreetMap con callejones, tiempos calibrados con OSRM._
 <!-- RESUMEN_PLAN_FIN -->
 
 ## Metodología del plan de rutas
@@ -78,8 +83,9 @@ tres capas: **Sede**, **Rutas por día** y **Puntos de muestreo**, con todos sus
 |---|---|
 | `index.html` | Portada con acceso a los cuatro ingenios y su avance |
 | `incauca.html`, `manuelita.html`, `providencia.html`, `castilla.html` | Aplicación de campo de cada ingenio (generadas desde `app/plantilla_ingenio.html`) |
-| `app/` | Código común: `app.js` (interfaz y mapa), `logica.js` (estados y estadísticas), `almacen.js` (IndexedDB), `sync.js` (Supabase), `config.js`, `app.css`, íconos |
-| `data/<ingenio>.js` | Puntos y rutas del plan en GeoJSON (EPSG:4326) con metadatos |
+| `app/` | Código común: `app.js` (interfaz y mapa), `logica.js` (estados y estadísticas), `navegacion.js` (rutas y giros en el celular), `almacen.js` (IndexedDB), `sync.js` (Supabase), `config.js`, `app.css`, íconos |
+| `data/<ingenio>.js` | Puntos, rutas y peajes del plan en GeoJSON (EPSG:4326) con metadatos |
+| `data/red_<ingenio>.js` | Red vial del ingenio (intersecciones y tramos con sentido, tipo y nombre de vía) para navegar sin internet |
 | `rutas_<ingenio>.kml` | Plan para QField / QGIS / Google Earth |
 | `sw.js`, `manifest.webmanifest` | Funcionamiento sin conexión e instalación en el celular |
 | `supabase/` | Migración SQL de la base de datos y semilla de puntos |

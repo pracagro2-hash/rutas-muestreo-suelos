@@ -192,7 +192,8 @@
       } else { marcaGps.setLatLng(ll); circuloGps.setLatLng(ll).setRadius(miPos.precision); }
       girarFlecha();
       guardarUbicacion(pos);
-      if (seguir) mapa.setView(ll, Math.max(mapa.getZoom(), 16), { animate: true });
+      if (nav) actualizarNav();
+      if (seguir) mapa.setView(ll, Math.max(mapa.getZoom(), nav ? 17 : 16), { animate: true });
       if (seleccionado) pintarDistancia();
     }, (err) => {
       // Solo se apaga si se negó el permiso; una pérdida momentánea de señal no detiene la ubicación ni el recorrido
@@ -226,6 +227,180 @@
     const d = distanciaM(miPos, PUNTO[seleccionado]);
     el.textContent = (d < 1000 ? `${Math.round(d)} m` : `${coma(d / 1000)} km`) + " en línea recta";
   }
+
+  // ---------------- Navegación tipo Waze (ruta desde mi ubicación, calculada en el celular) ----------------
+  // La red vial del plan (con callejones) se descarga una vez (data/red_<ingenio>.js) y queda disponible sin internet.
+  let red = null, cargandoRed = null, nav = null, capaNav = null;
+  let voz = localStorage.getItem("rutas_voz") !== "no";
+  const ICONOS_MANIOBRA = {
+    recto: "M11 6.83 9.41 8.41 8 7l4-4 4 4-1.41 1.41L13 6.83V21h-2z",
+    derecha: "M17.17 11l-1.59 1.59L17 14l4-4-4-4-1.41 1.41L17.17 9H9c-1.1 0-2 .9-2 2v9h2v-9h8.17z",
+    "leve-derecha": "M6 6v2h8.59L5 17.59 6.41 19 16 9.41V18h2V6z",
+    retorno: "M18 9v12h-2V9c0-2.21-1.79-4-4-4S8 6.79 8 9v4.17l1.59-1.59L11 13l-4 4-4-4 1.41-1.41L6 13.17V9c0-3.31 2.69-6 6-6s6 2.69 6 6z",
+    llegada: E.en_camino.svg,
+  };
+  function iconoManiobra(tipo) {
+    const espejo = tipo === "izquierda" || tipo === "leve-izquierda";
+    const d = ICONOS_MANIOBRA[(tipo || "recto").replace("izquierda", "derecha")] || ICONOS_MANIOBRA.recto;
+    return `<svg viewBox="0 0 24 24" style="${espejo ? "transform:scaleX(-1)" : ""}"><path fill="#fff" d="${d}"/></svg>`;
+  }
+  const textoVoz = (t) => t.replace(/(\d+(?:,\d+)?) km/g, "$1 kilómetros").replace(/(\d+) m\b/g, "$1 metros");
+  function hablar(texto) {
+    if (!voz || !("speechSynthesis" in window)) return;
+    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(textoVoz(texto)); u.lang = "es-CO"; speechSynthesis.speak(u); } catch (e) { /* sin voz */ }
+  }
+  function cargarRedVial() {
+    if (red) return Promise.resolve(red);
+    if (cargandoRed) return cargandoRed;
+    cargandoRed = new Promise((ok, mal) => {
+      const listo = () => {
+        const d = (window.RED_VIAL || {})[ING];
+        if (!d) { cargandoRed = null; return mal(new Error("No se encontró la red vial de este ingenio")); }
+        red = Navegacion.cargarRed(d); window.RED_VIAL[ING] = null; ok(red);
+      };
+      if ((window.RED_VIAL || {})[ING]) return listo();
+      const s = document.createElement("script");
+      s.src = `data/red_${ING.toLowerCase()}.js`; s.onload = listo;
+      s.onerror = () => { cargandoRed = null; mal(new Error("No se pudo cargar la red vial: abra la aplicación una vez con internet")); };
+      document.head.appendChild(s);
+    });
+    return cargandoRed;
+  }
+  const destinoCoord = (d) => d.tipo === "sede" ? [META.sede.lat, META.sede.lon] : [PUNTO[d.id].lat, PUNTO[d.id].lon];
+  const nombreDestino = (d) => d.tipo === "sede" ? "la sede" : d.id;
+  function siguienteDestino(dia) {
+    const p = Logica.siguientePendiente(PUNTOS, REG, dia === undefined ? filtroDia : dia);
+    return p ? { tipo: "punto", id: p.id } : { tipo: "sede" };
+  }
+  function enlaceGoogleMaps(destino) {
+    // Desde la ubicación actual: destino y luego los demás pendientes del mismo día, terminando en la sede
+    if (destino.tipo === "sede") return `https://www.google.com/maps/dir/?api=1&destination=${META.sede.lat},${META.sede.lon}&travelmode=driving`;
+    const p = PUNTO[destino.id];
+    const resto = PUNTOS.filter((q) => q.dia === p.dia && q.orden > p.orden && estadoDe(q.id) !== "realizado").sort((a, b) => a.orden - b.orden);
+    const paradas = [p, ...resto].map((q) => `${q.lat},${q.lon}`);
+    return `https://www.google.com/maps/dir/?api=1&destination=${META.sede.lat},${META.sede.lon}&waypoints=${encodeURIComponent(paradas.join("|"))}&travelmode=driving`;
+  }
+  async function cambiarEstadoDe(id, estado) {
+    try {
+      const nuevo = Logica.aplicarCambios(reg(id), { estado }, usuarioActual(), ahora());
+      if (nuevo === reg(id)) return;
+      REG[id] = nuevo; await Almacen.guardarRegistro(nuevo); pintarTodo(false); Sync.sincronizar();
+    } catch (e) { /* el estado se puede cambiar a mano */ }
+  }
+  async function iniciarNavegacion(destino) {
+    if (typeof Navegacion === "undefined") { toast("La navegación funciona en la versión publicada de la aplicación"); return; }
+    destino = destino || siguienteDestino();
+    cerrarFicha(); mostrarVista("mapa");
+    nav = { destino, ruta: null, s: null, avisos: new Set(), fuera: 0, ultimoCalculo: 0, llegado: false };
+    document.body.classList.add("navegando");
+    Object.values(capaRutas).forEach((c) => c.setStyle({ opacity: .3 }));
+    hablar("Calculando la ruta");              // dentro del toque: habilita la voz en el iPhone
+    pintarNav();
+    if (gpsId === null) iniciarGps();
+    seguir = true; pintarBotonGps();
+    try { await cargarRedVial(); } catch (e) { toast(e.message); terminarNavegacion(); return; }
+    if (destino.tipo === "punto" && estadoDe(destino.id) === "pendiente") cambiarEstadoDe(destino.id, "en_camino");
+    if (miPos) recalcular(); else pintarNav();
+  }
+  function terminarNavegacion() {
+    nav = null;
+    if (capaNav) { mapa.removeLayer(capaNav); capaNav = null; }
+    Object.values(capaRutas).forEach((c) => c.setStyle({ opacity: .85 }));
+    document.body.classList.remove("navegando");
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+  }
+  function recalcular(motivo) {
+    if (!nav || !miPos || !red) return;
+    nav.ultimoCalculo = Date.now(); nav.fuera = 0; nav.avisos = new Set(); nav.llegado = false;
+    const r = Navegacion.calcularRuta(red, [miPos.lat, miPos.lon], destinoCoord(nav.destino));
+    if (capaNav) { mapa.removeLayer(capaNav); capaNav = null; }
+    if (!r) { nav.ruta = null; pintarNav(); toast("No se encontró una ruta por la red vial desde aquí: use Google Maps"); return; }
+    nav.ruta = r; nav.s = 0;
+    const pts = r.coords, fin = destinoCoord(nav.destino);
+    capaNav = L.layerGroup([
+      L.polyline(pts, { color: "#FFFFFF", weight: 11, opacity: .95, interactive: false }),
+      L.polyline(pts, { color: "#2F80ED", weight: 7, opacity: 1, interactive: false }),
+      L.polyline([r.fin, fin], { color: "#2F80ED", weight: 3, dashArray: "4 6", interactive: false }),   // tramo a pie
+    ]).addTo(mapa);
+    const min = Math.max(1, Math.round(r.segundos / 60));
+    hablar(motivo === "desvio" ? "Recalculando la ruta" : `Ruta a ${nombreDestino(nav.destino)}: ${Navegacion.textoDistancia(r.metros)}, ${min} minutos`);
+    actualizarNav();
+  }
+  function actualizarNav() {
+    if (!nav || !miPos) return;
+    if (!nav.ruta) { if (red && Date.now() - nav.ultimoCalculo > 5000) recalcular(); return; }
+    const p = [miPos.lat, miPos.lon];
+    const u = Navegacion.ubicarEnRuta(nav.ruta, p, nav.s);
+    // Desvío: lejos de la ruta en dos lecturas seguidas (con margen según la precisión del GPS) → se recalcula desde aquí
+    const umbral = Math.max(35, Math.min(miPos.precision || 0, 60) * 1.2);
+    if (!nav.llegado && u.d > umbral) {
+      nav.fuera++;
+      if (nav.fuera >= 2 && Date.now() - nav.ultimoCalculo > 4000) { recalcular("desvio"); return; }
+    } else { nav.fuera = 0; nav.s = u.s; }
+    const st = Navegacion.estadoEn(nav.ruta, nav.s);
+    if (!nav.llegado && (st.metrosRestantes < 30 || Navegacion.distancia(p, nav.ruta.fin) < 25)) { llegar(); return; }
+    const m = st.maniobra;
+    if (m && !nav.llegado) {
+      const k = m.s.toFixed(0), txt = Navegacion.textoManiobra(m);
+      if (st.distanciaManiobra <= 60 && !nav.avisos.has(k + "c")) { nav.avisos.add(k + "c"); nav.avisos.add(k + "l"); hablar(txt); }
+      else if (st.distanciaManiobra <= 400 && st.distanciaManiobra > 120 && !nav.avisos.has(k + "l")) {
+        nav.avisos.add(k + "l"); hablar(`En ${Navegacion.textoDistancia(st.distanciaManiobra)}, ${txt.charAt(0).toLowerCase() + txt.slice(1)}`);
+      }
+    }
+    pintarNav(st);
+  }
+  function llegar() {
+    nav.llegado = true;
+    if (nav.destino.tipo === "sede") hablar("Llegó a la sede.");
+    else {
+      const p = PUNTO[nav.destino.id], pie = Math.round((p.acceso_pie_m || 0) / 10) * 10;
+      hablar(`Llegó cerca de ${p.id}.` + (pie >= 20 ? ` Camine unos ${pie} metros hasta el punto.` : ""));
+    }
+    pintarNav();
+  }
+  function pintarNav(st) {
+    const b = $("#navBanner"), pn = $("#navPanel");
+    if (!nav) return;
+    const d = nav.destino, p = d.tipo === "punto" ? PUNTO[d.id] : null;
+    const titulo = d.tipo === "sede" ? "Regreso a la sede" : `Hacia ${p.id} · día ${p.dia}, parada ${p.orden}`;
+    let ico = "recto", dist = "", inst = "";
+    if (nav.llegado) {
+      ico = "llegada";
+      dist = d.tipo === "sede" ? "Llegó a la sede" : `Llegó a ${p.id}`;
+      inst = d.tipo === "sede" ? "Fin del recorrido" : (p.acceso_pie_m >= 20 ? `Camine ≈ ${Math.round(p.acceso_pie_m / 10) * 10} m hasta el punto (línea punteada)` : "El punto está junto a la vía");
+    } else if (!nav.ruta) {
+      dist = miPos ? "Calculando la ruta…" : "Buscando señal GPS…"; inst = "La ruta se calcula desde su ubicación";
+    } else if (nav.fuera > 0) {
+      dist = "Fuera de la ruta"; inst = "Recalculando desde su ubicación…";
+    } else if (st) {
+      ico = st.maniobra ? st.maniobra.tipo : "llegada";
+      dist = Navegacion.textoDistancia(st.distanciaManiobra);
+      inst = st.maniobra ? Navegacion.textoManiobra(st.maniobra) : `Llegada a ${nombreDestino(d)}`;
+    }
+    b.innerHTML = `<div class="nb-ico">${iconoManiobra(ico)}</div><div class="nb-txt"><span class="nb-dist">${esc(dist)}</span><span class="nb-inst">${esc(inst)}</span></div>`;
+    const res = st || (nav.ruta ? Navegacion.estadoEn(nav.ruta, nav.s || 0) : null);
+    const llegadaHora = res ? new Date(Date.now() + res.segundosRestantes * 1000).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—";
+    pn.innerHTML = `<div class="np-dest">${esc(titulo)}</div>
+      ${nav.llegado && d.tipo === "punto"
+        ? `<div class="np-botones"><button class="btn primario" id="npFicha">Abrir ficha de ${esc(p.id)}</button>
+           <button class="btn borde" id="npSiguiente">Siguiente punto</button></div>`
+        : `<div class="np-datos"><span><b>${res ? Math.max(1, Math.round(res.segundosRestantes / 60)) + " min" : "—"}</b>tiempo</span>
+           <span><b>${res ? Navegacion.textoDistancia(res.metrosRestantes) : "—"}</b>distancia</span><span><b>${llegadaHora}</b>llegada</span></div>`}
+      <div class="np-acciones"><button id="npVoz" aria-label="Voz">${voz ? "🔊 Voz" : "🔇 Sin voz"}</button>
+        <a id="npGmaps" target="_blank" rel="noopener" href="${enlaceGoogleMaps(d)}">Google Maps</a>
+        <button id="npTerminar">Terminar</button></div>`;
+    $("#npVoz").onclick = () => { voz = !voz; localStorage.setItem("rutas_voz", voz ? "si" : "no"); if (!voz) speechSynthesis.cancel(); pintarNav(st); };
+    $("#npTerminar").onclick = terminarNavegacion;
+    if ($("#npFicha")) $("#npFicha").onclick = () => abrirFicha(p.id);
+    if ($("#npSiguiente")) $("#npSiguiente").onclick = () => iniciarNavegacion(siguienteDestinoTras(p));
+  }
+  function siguienteDestinoTras(p) {
+    const resto = PUNTOS.filter((q) => q.dia === p.dia && q.id !== p.id && estadoDe(q.id) !== "realizado").sort((a, b) => a.orden - b.orden);
+    const desp = resto.find((q) => q.orden > p.orden) || resto[0];
+    return desp ? { tipo: "punto", id: desp.id } : { tipo: "sede" };
+  }
+  $("#btnIniciar").onclick = () => iniciarNavegacion();
+  window.APP_PRUEBAS = { nav: () => nav };   // solo lectura, para las pruebas automáticas
 
   // ---------------- Botones flotantes ----------------
   $("#btnCapa").onclick = () => {
@@ -321,15 +496,18 @@
         : `<button class="btn primario" id="bRealizado">✓ Marcar como realizado</button>
            <div class="botones-dobles"><button class="btn borde" id="bBorrador">Guardar borrador</button>
            <button class="btn alerta" id="bInconv">! Reportar inconveniente</button></div>`}
+      <button class="btn morado" id="bNavegar">${iconoManiobra("leve-derecha")} Navegar a este punto desde mi ubicación</button>
       <div class="botones-dobles">
-        <a class="btn morado" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}&travelmode=driving">➜ Navegar a este punto</a>
-        <button class="btn borde" id="bCentrar">◎ Centrar en el mapa</button></div>
+        <a class="btn borde" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}&travelmode=driving">Google Maps</a>
+        <a class="btn borde" target="_blank" rel="noopener" href="https://waze.com/ul?ll=${p.lat},${p.lon}&navigate=yes">Waze</a></div>
+      <button class="btn borde" id="bCentrar">◎ Centrar en el mapa</button>
       <h3 style="font-size:14px;margin:14px 0 6px">Historial de cambios</h3>
       <div class="historial" id="historial">${historialHtml(r.historial)}</div>
       <p class="nota">${r.pendiente_sync && Sync.configurado ? "⏳ Cambios pendientes de sincronizar." : ""}
         ${r.actualizado_en ? `Última modificación: ${fechaHora(r.actualizado_en)}${r.actualizado_por ? " por " + esc(r.actualizado_por) : ""}.` : ""}</p>`;
     $("#cerrarFicha").onclick = cerrarFicha;
-    $("#bCentrar").onclick = () => { cerrarFicha(); mostrarVista("mapa"); seguir = false; pintarBotonGps(); mapa.setView([p.lat, p.lon], 17); };
+    $("#bNavegar").onclick = () => iniciarNavegacion({ tipo: "punto", id: p.id });
+    $("#bCentrar").onclick =() => { cerrarFicha(); mostrarVista("mapa"); seguir = false; pintarBotonGps(); mapa.setView([p.lat, p.lon], 17); };
     $("#ficha").querySelectorAll(".estados button").forEach((b) => { b.onclick = () => cambiarEstado(b.dataset.estado); });
     if ($("#bEditar")) $("#bEditar").onclick = () => { editando = true; pintarFicha(); };
     if ($("#bRealizado")) $("#bRealizado").onclick = marcarRealizado;
@@ -684,6 +862,8 @@
     Sync.iniciar(ING, recargarRegistros, pintarEstadoSync);
     if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
       navigator.serviceWorker.register("sw.js").catch((e) => console.warn("Service worker:", e));
+      // La red vial para navegar se descarga en segundo plano: así queda guardada para usarla sin señal en campo
+      setTimeout(() => fetch(`data/red_${ING.toLowerCase()}.js`).catch(() => {}), 6000);
     }
   }
   iniciar();

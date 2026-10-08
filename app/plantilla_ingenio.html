@@ -33,6 +33,10 @@
   <button class="fab" id="btnCapa" title="Cambiar a mapa de calles" aria-label="Cambiar mapa base"><svg viewBox="0 0 24 24"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg></button>
 </div>
 
+<button id="btnIniciar" aria-label="Iniciar ruta al siguiente punto pendiente"><svg viewBox="0 0 24 24"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7z"/></svg>Iniciar ruta</button>
+<div id="navBanner" role="status" aria-live="polite"></div>
+<div id="navPanel"></div>
+
 <section class="vista" id="vistaLista" aria-label="Lista de puntos">
   <div class="contenido"><h2>Puntos de muestreo</h2>
     <input id="buscar" class="buscador" type="search" placeholder="Buscar por ID o suerte" aria-label="Buscar punto">
@@ -57,6 +61,7 @@
 <script src="app/logica.js"></script>
 <script src="app/almacen.js"></script>
 <script src="app/sync.js"></script>
+<script src="app/navegacion.js"></script>
 <script>window.APP_INGENIO = "{{INGENIO}}";</script>
 <script src="data/{{ARCHIVO}}.js"></script>
 <script src="app/app.js"></script>

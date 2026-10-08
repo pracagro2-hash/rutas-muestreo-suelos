@@ -1,4 +1,4 @@
--- Puntos de muestreo del plan de rutas (generado por PLANIFICACION_RUTAS_MUESTREO.ipynb el 07/10/2026).
+-- Puntos de muestreo del plan de rutas (generado por PLANIFICACION_RUTAS_MUESTREO.ipynb el 08/10/2026).
 -- Ejecutar DESPUÉS de migrations/001_esquema_muestreo.sql. Es idempotente: se puede volver a ejecutar.
 begin;
 insert into public.puntos_muestreo (punto_id, ingenio, suerte, dia, orden, lat, lon) values ('INC-019', 'INCAUCA', 'CA01097800004A', 1, 1, 3.275752, -76.308784) on conflict (punto_id) do update set ingenio = excluded.ingenio, suerte = excluded.suerte, dia = excluded.dia, orden = excluded.orden, lat = excluded.lat, lon = excluded.lon;
