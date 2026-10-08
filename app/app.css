@@ -206,7 +206,7 @@ fieldset:disabled .campo input, fieldset:disabled .campo select, fieldset:disabl
 }
 
 /* ---------- Navegación tipo Waze ---------- */
-#btnIniciar { position: fixed; right: 12px; bottom: calc(var(--alto-nav) + 16px); z-index: 1000; display: flex; align-items: center; gap: 8px;
+#btnIniciar { position: fixed; right: 12px; bottom: calc(var(--alto-nav) + 34px); z-index: 1000; display: flex; align-items: center; gap: 8px;
   height: 52px; padding: 0 20px 0 16px; border: none; border-radius: 26px; background: var(--morado); color: #fff; font-size: 16px;
   box-shadow: 0 4px 14px rgba(94,45,145,.5); }
 #btnIniciar svg { width: 24px; height: 24px; fill: #fff; transform: rotate(45deg); }

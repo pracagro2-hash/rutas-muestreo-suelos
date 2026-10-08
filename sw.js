@@ -2,12 +2,14 @@
  * Service worker — funcionamiento sin internet.
  * - Aplicación y datos del plan: se guardan en caché al instalar y se actualizan en segundo plano.
  * - Mosaicos del mapa (satélite / calles): se guardan los que se visualizan, con un límite de cantidad.
+ * - Mapa base Sentinel-2 (mapa_base/): lo descarga la aplicación completo para el ingenio y se usa sin internet.
  * - Base de datos (Supabase): nunca se guarda en caché.
  * Al publicar cambios en el código, incremente VERSION para que los celulares descarguen la versión nueva.
  */
-const VERSION = "rutas-muestreo-v7-2026-10-08";
+const VERSION = "rutas-muestreo-v9-2026-10-08";
 const CACHE_APP = `app-${VERSION}`;
 const CACHE_TESELAS = "teselas-mapa";
+const CACHE_BASE = "mapa-base-s2-v1";   // mapa base Sentinel-2 sin internet (lo llena la aplicación; no se borra al actualizar)
 const MAX_TESELAS = 4000;
 const INGENIOS = ["incauca", "manuelita", "providencia", "castilla"];
 const NUCLEO = [
@@ -49,6 +51,16 @@ self.addEventListener("fetch", (ev) => {
   if (req.method !== "GET") return;
   const url = req.url;
   if (/supabase\.(co|in)/.test(url)) return;                 // datos en vivo: siempre a la red
+
+  if (url.startsWith(self.location.origin) && url.includes("/mapa_base/")) {   // mapa base sin internet: primero caché
+    ev.respondWith((async () => {
+      const c = await caches.open(CACHE_BASE);
+      const enCache = await c.match(req, { ignoreSearch: true });
+      if (enCache) return enCache;
+      try { const r = await fetch(req); if (r.ok) await c.put(req, r.clone()); return r; } catch (e) { return new Response("", { status: 504 }); }
+    })());
+    return;
+  }
 
   if (esTesela(url)) {                                      // mosaicos: primero caché
     ev.respondWith((async () => {

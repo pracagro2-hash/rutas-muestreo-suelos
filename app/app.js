@@ -55,6 +55,16 @@
   const capaSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     { maxZoom: 19, attribution: "Imagen © Esri" });
   const capaCalles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" });
+  // Mapa base sin internet: mosaico Sentinel-2 (mapa_base_sentinel2.py), siempre debajo; Esri/OSM encima cuando hay señal
+  const limitesBase = (() => {
+    const la = [META.sede.lat], lo = [META.sede.lon];
+    PUNTOS.forEach((p) => { la.push(p.lat); lo.push(p.lon); });
+    RUTAS.forEach((r) => r.coords.forEach(([a, b]) => { la.push(a); lo.push(b); }));
+    return L.latLngBounds([Math.min(...la) - .03, Math.min(...lo) - .03], [Math.max(...la) + .03, Math.max(...lo) + .03]);
+  })();
+  L.tileLayer("mapa_base/s2/{z}/{x}/{y}.jpg", { minNativeZoom: 10, maxNativeZoom: 14, maxZoom: 19, bounds: limitesBase, zIndex: 0,
+    attribution: "Sentinel-2: Copernicus (sin señal)" }).addTo(mapa);
+  capaSat.setZIndex(1); capaCalles.setZIndex(1);
   capaSat.addTo(mapa);
   let enSatelite = true;
 
@@ -402,11 +412,78 @@
   $("#btnIniciar").onclick = () => iniciarNavegacion();
   window.APP_PRUEBAS = { nav: () => nav };   // solo lectura, para las pruebas automáticas
 
+  // ---------------- Mapa base sin internet: descarga y estado ----------------
+  // Las teselas Sentinel-2 del ingenio se guardan en una caché propia (no se borra al actualizar la aplicación).
+  const CACHE_BASE = "mapa-base-s2-v1", claveBase = `rutas_mapa_base_${ING}`;
+  let descargaBase = null;
+  const estadoBase = () => { try { return JSON.parse(localStorage.getItem(claveBase)); } catch (e) { return null; } };
+  function pintarEstadoBase() {
+    const el = $("#estadoMapaBase"); if (!el) return;
+    const est = estadoBase();
+    el.textContent = !est ? "Aún no se ha descargado. Se descarga sola al abrir la aplicación con internet (o con el botón)."
+      : est.version && est.listas === est.total ? `Listo: imagen de toda la zona del ingenio guardada en este celular (${est.total} mosaicos, ${coma(est.mb)} MB). Sin señal verá esta imagen; con señal, la imagen detallada.`
+      : `Descargando: ${est.listas} de ${est.total} mosaicos…`;
+  }
+  function descargarMapaBase(forzar) {
+    if (descargaBase) return descargaBase;
+    if (!("caches" in window) || !location.protocol.startsWith("http")) return Promise.resolve(null);
+    descargaBase = (async () => {
+      const man = await (await fetch(`mapa_base/s2/${ING.toLowerCase()}.json`, { cache: "no-cache" })).json();
+      const version = `${man.fechas.join("_")}_${man.escenas}`, previo = estadoBase();
+      if (!forzar && previo && previo.version === version && previo.listas === man.teselas.length) return previo;
+      const c = await caches.open(CACHE_BASE), renovar = !!(previo && previo.version && previo.version !== version);
+      const urls = man.teselas.map(([z, x, y]) => `mapa_base/s2/${z}/${x}/${y}.jpg`);
+      let i = 0, listas = 0, fallas = 0;
+      const guardarEstado = (v) => { localStorage.setItem(claveBase, JSON.stringify({ version: v, listas, total: urls.length, mb: man.megabytes })); pintarEstadoBase(); };
+      const trabajador = async () => {
+        while (i < urls.length) {
+          const u = urls[i++];
+          try {
+            if (!renovar && await c.match(u)) { listas++; continue; }
+            const r = await fetch(u, { cache: "no-cache" });
+            if (r.ok) { await c.put(u, r); listas++; } else fallas++;
+          } catch (e) { fallas++; }
+          if ((listas + fallas) % 25 === 0) guardarEstado(null);
+        }
+      };
+      await Promise.all(Array.from({ length: 6 }, trabajador));
+      guardarEstado(fallas ? null : version);
+      return estadoBase();
+    })().catch(() => null).finally(() => { descargaBase = null; });
+    return descargaBase;
+  }
+
   // ---------------- Botones flotantes ----------------
   $("#btnCapa").onclick = () => {
-    if (enSatelite) { mapa.removeLayer(capaSat); capaCalles.addTo(mapa); } else { mapa.removeLayer(capaCalles); capaSat.addTo(mapa); }
-    enSatelite = !enSatelite; $("#btnCapa").title = enSatelite ? "Cambiar a mapa de calles" : "Cambiar a imagen satelital";
+    if (sinSenal) { toast("Sin señal: se muestra el mapa guardado (Sentinel-2)"); return; }
+    mapa.removeLayer(capaActiva()); enSatelite = !enSatelite; capaActiva().addTo(mapa);
+    $("#btnCapa").title = enSatelite ? "Cambiar a mapa de calles" : "Cambiar a imagen satelital";
   };
+  // Sin señal: se quita la capa en línea (si no, el mapa deja encima mosaicos viejos y borrosos) y queda el mapa
+  // guardado Sentinel-2; cada 45 s se revisa si volvió la señal para mostrar otra vez la imagen detallada.
+  let sinSenal = false, erroresTesela = 0;
+  function capaActiva() { return enSatelite ? capaSat : capaCalles; }
+  function modoSinSenal(activar) {
+    if (activar === sinSenal) return;
+    sinSenal = activar;
+    // Sentinel-2 tiene píxeles de 10 m: sin señal se limita el acercamiento a un nivel donde la imagen se ve nítida
+    if (activar) { mapa.removeLayer(capaActiva()); mapa.setMaxZoom(16); toast("Sin señal: se muestra el mapa guardado (Sentinel-2)"); }
+    else { erroresTesela = 0; mapa.setMaxZoom(19); capaActiva().addTo(mapa); }
+  }
+  async function probarSenal() {
+    try {
+      await fetch("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer?f=json", { mode: "no-cors", cache: "no-store" });
+      modoSinSenal(false);
+    } catch (e) { /* sigue sin señal */ }
+  }
+  [capaSat, capaCalles].forEach((c) => {
+    c.on("tileerror", () => { if (++erroresTesela >= 3) modoSinSenal(true); });
+    c.on("tileload", () => { erroresTesela = 0; });
+  });
+  window.addEventListener("offline", () => modoSinSenal(true));
+  window.addEventListener("online", probarSenal);
+  setInterval(() => { if (sinSenal) probarSenal(); }, 45000);
+  if (navigator.onLine === false) modoSinSenal(true);
   $("#btnTodo").onclick = () => { filtroDia = "todos"; filtroEstado = "todos"; $("#selDia").value = "todos"; $("#selEstado").value = "todos"; seguir = false; pintarBotonGps(); pintarTodo(true); };
   $("#btnSiguiente").onclick = () => {
     const p = Logica.siguientePendiente(PUNTOS, REG, filtroDia);
@@ -729,6 +806,9 @@
       <h3>Mi recorrido GPS</h3>
       <p class="nota" id="resumenRecorrido">Calculando…</p>
       <button class="opcion" id="bRecorrido"><span>⬇️ Exportar recorrido (GeoJSON)<small>Tramos con hora, velocidad y precisión de cada ubicación, para calibrar los tiempos del modelo de rutas</small></span></button>
+      <h3>Mapa sin señal</h3>
+      <p class="nota" id="estadoMapaBase"></p>
+      <button class="opcion" id="bMapaBase"><span>⬇️ Descargar o actualizar el mapa sin señal<small>Imagen satelital Sentinel-2 de toda la zona del ingenio (sin nubes, 2025–2026), para ver el mapa sin internet</small></span></button>
       <button class="opcion" id="bBorrarRecorrido"><span style="color:var(--magenta)">Borrar el recorrido guardado de este ingenio</span></button>
       <h3>Base de datos y sincronización</h3>
       <div class="aviso info" id="estadoSyncTexto">${esc($("#chipSync").textContent)}</div>
@@ -756,6 +836,13 @@
       const correo = $("#correo").value.trim();
       if (!correo) return toast("Escriba su correo");
       try { await Sync.iniciarSesion(correo); toast("Revise su correo y abra el enlace de acceso"); } catch (e) { toast(e.message); }
+    });
+    pintarEstadoBase();
+    on("#bMapaBase", async () => {
+      if (!navigator.onLine) { toast("Necesita internet para descargar el mapa"); return; }
+      toast("Descargando el mapa sin señal…");
+      const est = await descargarMapaBase(true);
+      toast(est && est.version ? "Mapa sin señal listo" : "La descarga quedó incompleta: intente de nuevo con internet");
     });
     on("#bCsv", exportarCsv); on("#bGeojson", exportarGeojson); on("#bRecorrido", exportarRecorrido);
     on("#bBorrarRecorrido", async () => {
@@ -864,6 +951,8 @@
       navigator.serviceWorker.register("sw.js").catch((e) => console.warn("Service worker:", e));
       // La red vial para navegar se descarga en segundo plano: así queda guardada para usarla sin señal en campo
       setTimeout(() => fetch(`data/red_${ING.toLowerCase()}.js`).catch(() => {}), 6000);
+      // y la imagen Sentinel-2 de la zona del ingenio (mapa base sin internet), salvo en modo ahorro de datos
+      if (!(navigator.connection && navigator.connection.saveData)) setTimeout(() => descargarMapaBase(), 9000);
     }
   }
   iniciar();

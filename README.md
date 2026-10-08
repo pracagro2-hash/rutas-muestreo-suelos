@@ -32,6 +32,9 @@ estimación del **stock de carbono orgánico del suelo (COS)** en áreas cultiva
 - **Lista** de puntos por día con buscador y **estadísticas** de avance general y por día (calculadas con los registros
   guardados; distancias y tiempos tomados del plan de rutas).
 - **Persistencia:** registros y fotos se guardan en el celular (IndexedDB) y se conservan al cerrar el navegador o reiniciar.
+- **Mapa sin señal (Sentinel-2):** mosaico sin nubes 2025–2026 de toda la zona de cada ingenio (`mapa_base/s2/`, generado con
+  `05_ANALISIS_RUTAS/Script/mapa_base_sentinel2.py` en Google Earth Engine). Cada celular descarga el de su ingenio (7–11 MB)
+  al abrir la aplicación con internet; sin señal se muestra automáticamente. Contiene datos Copernicus Sentinel modificados.
 - **Sin conexión:** la aplicación, los datos del plan y los mosaicos del mapa ya visualizados quedan en caché
   (service worker); los cambios hechos sin señal se sincronizan al recuperar internet.
 - **Base de datos central (Supabase), opcional:** sincronización entre usuarios autorizados, historial en el servidor,
@@ -87,6 +90,7 @@ tres capas: **Sede**, **Rutas por día** y **Puntos de muestreo**, con todos sus
 | `data/<ingenio>.js` | Puntos, rutas y peajes del plan en GeoJSON (EPSG:4326) con metadatos |
 | `data/red_<ingenio>.js` | Red vial del ingenio (intersecciones y tramos con sentido, tipo y nombre de vía) para navegar sin internet |
 | `rutas_<ingenio>.kml` | Plan para QField / QGIS / Google Earth |
+| `mapa_base/s2/` | Mapa base Sentinel-2 sin internet (teselas JPEG zoom 10–14 y lista por ingenio) |
 | `sw.js`, `manifest.webmanifest` | Funcionamiento sin conexión e instalación en el celular |
 | `supabase/` | Migración SQL de la base de datos y semilla de puntos |
 | `docs/CONFIGURACION_SUPABASE.md` | Pasos para activar la base de datos central |
@@ -102,7 +106,8 @@ incrementar `VERSION` en `sw.js` para que los celulares descarguen la nueva vers
 - Los tiempos son estimaciones del plan; el estado de las vías, el clima y los permisos de acceso pueden modificarlos.
 - Los callejones no mapeados en OpenStreetMap no se consideran; el acceso final al punto se estima a pie.
 - Sin la base de datos central configurada, los registros se guardan solo en cada celular.
-- Sin conexión, el mapa muestra los mosaicos que ya se visualizaron con internet en ese celular.
+- Sin señal, el mapa de fondo es el mosaico Sentinel-2 guardado en el celular (10 m de resolución; acercamiento máximo 16);
+  la imagen detallada de Esri vuelve sola al recuperar la señal.
 
 ---
 
