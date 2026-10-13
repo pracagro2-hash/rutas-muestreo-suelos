@@ -49,11 +49,11 @@ estimación del **stock de carbono orgánico del suelo (COS)** en áreas cultiva
 |---|---|---|---|---|---|---|---|
 | [Incauca](https://pracagro2-hash.github.io/rutas-muestreo-suelos/incauca.html) | Sede Incauca (Miranda, Cauca) | 45 | 12 (15) | 557 | 20,1 | 78,1 | $7.662.389 |
 | [Manuelita](https://pracagro2-hash.github.io/rutas-muestreo-suelos/manuelita.html) | Ingenio Manuelita (Palmira) | 45 | 13 (16) | 561 | 18,7 | 80,6 | $8.308.481 |
-| [Providencia](https://pracagro2-hash.github.io/rutas-muestreo-suelos/providencia.html) | Ingenio Providencia (El Cerrito) | 45 | 13 (16) | 680 | 23,5 | 79,9 | $8.356.068 |
-| [Castilla](https://pracagro2-hash.github.io/rutas-muestreo-suelos/castilla.html) | Riopaila Castilla – planta Castilla (Pradera) | 45 | 14 (17) | 944 | 30,1 | 80,7 | $8.811.395 |
-| **Total** | | **180** | **52 (64)** | **2.743** | | | **$33.138.333** |
+| [Providencia](https://pracagro2-hash.github.io/rutas-muestreo-suelos/providencia.html) | Ingenio Providencia (El Cerrito) | 45 | 13 (16) | 509 | 21,3 | 78,6 | $8.236.010 |
+| [Castilla](https://pracagro2-hash.github.io/rutas-muestreo-suelos/castilla.html) | Riopaila Castilla – planta Castilla (Pradera) | 45 | 14 (17) | 956 | 29,3 | 79,9 | $8.867.025 |
+| **Total** | | **180** | **52 (64)** | **2.584** | | | **$33.073.905** |
 
-_Plan generado el 08/10/2026 · jornada máxima 9 h · 90 min de muestreo por punto · red vial de OpenStreetMap con callejones, tiempos calibrados con OSRM._
+_Plan generado el 13/10/2026 · jornada máxima 9 h · 90 min de muestreo por punto · red vial de OpenStreetMap con callejones, tiempos calibrados con OSRM._
 <!-- RESUMEN_PLAN_FIN -->
 
 ## Metodología del plan de rutas
