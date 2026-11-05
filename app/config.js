@@ -11,8 +11,8 @@
  * guardan solo en el celular (IndexedDB) y no se comparten entre usuarios.
  */
 window.CONFIG_APP = {
-  SUPABASE_URL: "",
-  SUPABASE_ANON_KEY: "",
+  SUPABASE_URL: "https://xpjvaicugugjulvumgdt.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_H9vGx973XwV9mOdeF8DM2A_YQLSwqlf",
   BUCKET_FOTOS: "fotos-muestreo",
 
   // Nombres del equipo de campo para el selector de responsable (también se puede escribir otro).
