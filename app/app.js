@@ -545,7 +545,7 @@
         <div><span>Día · parada</span>${p.dia} · ${p.orden}</div>
         <div style="grid-column:1/-1"><span>Horario estimado</span>Sale de ${esc(origen.lugar)} ${esc(origen.hora)} → llega al punto ${esc(p.hora_llegada)} → termina el muestreo ${esc(p.hora_salida)}</div>
         <div style="grid-column:1/-1"><span>Jornada del día ${p.dia}</span>Salida de la sede ${esc(META.hora_salida)} · regreso estimado ${esc(rutaDia.regreso || "—")} (máximo ${esc(finJornada)}, ${coma(META.jornada_h, 0)} h)</div>
-        <div><span>Suerte</span>${esc(p.suerte)}</div>
+        <div style="grid-column:1/-1"><span>Suerte</span>${esc(p.nombre_suerte || p.suerte)}${p.nombre_suerte ? ` <small style="color:#6B6B6B">(${esc(p.suerte)})</small>` : ""}</div>
         <div><span>Edad del cultivo</span>${coma(p.edad_meses)} meses</div>
         <div><span>Acceso a pie desde la vía</span>≈ ${coma(p.acceso_pie_m, 0)} m</div>
         <div><span>Distancia desde mi ubicación</span><span id="distanciaPunto" style="color:#4A4A4A;font-size:inherit"></span></div>
@@ -727,7 +727,7 @@
   function pintarLista() {
     const q = ($("#buscar") && $("#buscar").value.trim().toLowerCase()) || "";
     const html = RUTAS.filter((r) => filtroDia === "todos" || String(r.dia) === String(filtroDia)).map((r) => {
-      const pts = PUNTOS.filter((p) => p.dia === r.dia && visible(p) && (!q || p.id.toLowerCase().includes(q) || String(p.suerte).toLowerCase().includes(q)))
+      const pts = PUNTOS.filter((p) => p.dia === r.dia && visible(p) && (!q || p.id.toLowerCase().includes(q) || String(p.suerte).toLowerCase().includes(q) || String(p.nombre_suerte || "").toLowerCase().includes(q)))
         .sort((a, b) => a.orden - b.orden);
       if (!pts.length) return "";
       const hechos = PUNTOS.filter((p) => p.dia === r.dia && estadoDe(p.id) === "realizado").length;
@@ -737,7 +737,7 @@
           <span>${hechos === totalDia ? "✅" : `${hechos}/${totalDia}`}</span></header>
         ${pts.map((p) => { const e = estadoDe(p.id); return `<button class="fila-punto" data-id="${esc(p.id)}">
           ${circuloEstado(e, 36)}<span class="txt"><span class="id">${p.orden}. ${esc(p.id)}</span>
-          <span class="meta">Suerte ${esc(p.suerte)} · ${coma(p.edad_meses)} meses</span>
+          <span class="meta">${esc(p.nombre_suerte || "Suerte " + p.suerte)} · ${coma(p.edad_meses)} meses</span>
           <span class="meta">${esc(p.hora_llegada)}–${esc(p.hora_salida)} · ${coma(p.km_desde_anterior)} km desde la parada anterior</span></span>
           ${pildoraEstado(e)}<span class="flecha">›</span></button>`; }).join("")}
       </section>`;
