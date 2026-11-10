@@ -174,6 +174,20 @@
       if (error) throw error;
     },
 
+    /** Ingreso sin salir de la página: correo y contraseña. */
+    async entrarConContrasena(correo, clave) {
+      if (!cliente) throw new Error("La base de datos no está configurada");
+      const { error } = await cliente.auth.signInWithPassword({ email: correo, password: clave });
+      if (error) throw new Error(/invalid/i.test(error.message) ? "Correo o contraseña incorrectos" : error.message);
+    },
+
+    /** Ingreso sin salir de la página: código de 6 dígitos que llega al correo. */
+    async verificarCodigo(correo, codigo) {
+      if (!cliente) throw new Error("La base de datos no está configurada");
+      const { error } = await cliente.auth.verifyOtp({ email: correo, token: codigo, type: "email" });
+      if (error) throw new Error(/expired|invalid/i.test(error.message) ? "Código vencido o incorrecto: pida uno nuevo" : error.message);
+    },
+
     async cerrarSesion() { if (cliente) await cliente.auth.signOut(); sesion = null; autorizado = false; await avisarEstado(); },
 
     sincronizar,

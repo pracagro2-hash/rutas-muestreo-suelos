@@ -546,6 +546,7 @@
         <div style="grid-column:1/-1"><span>Horario estimado</span>Sale de ${esc(origen.lugar)} ${esc(origen.hora)} → llega al punto ${esc(p.hora_llegada)} → termina el muestreo ${esc(p.hora_salida)}</div>
         <div style="grid-column:1/-1"><span>Jornada del día ${p.dia}</span>Salida de la sede ${esc(META.hora_salida)} · regreso estimado ${esc(rutaDia.regreso || "—")} (máximo ${esc(finJornada)}, ${coma(META.jornada_h, 0)} h)</div>
         <div style="grid-column:1/-1"><span>Suerte</span>${esc(p.nombre_suerte || p.suerte)}${p.nombre_suerte ? ` <small style="color:#6B6B6B">(${esc(p.suerte)})</small>` : ""}</div>
+        <div><span>Orden de suelo</span>${esc(p.orden_suelo || "—")}</div>
         <div><span>Edad del cultivo</span>${coma(p.edad_meses)} meses</div>
         <div><span>Acceso a pie desde la vía</span>≈ ${coma(p.acceso_pie_m, 0)} m</div>
         <div><span>Distancia desde mi ubicación</span><span id="distanciaPunto" style="color:#4A4A4A;font-size:inherit"></span></div>
@@ -737,7 +738,7 @@
           <span>${hechos === totalDia ? "✅" : `${hechos}/${totalDia}`}</span></header>
         ${pts.map((p) => { const e = estadoDe(p.id); return `<button class="fila-punto" data-id="${esc(p.id)}">
           ${circuloEstado(e, 36)}<span class="txt"><span class="id">${p.orden}. ${esc(p.id)}</span>
-          <span class="meta">${esc(p.nombre_suerte || "Suerte " + p.suerte)} · ${coma(p.edad_meses)} meses</span>
+          <span class="meta">${esc(p.nombre_suerte || "Suerte " + p.suerte)}${p.orden_suelo ? " · " + esc(p.orden_suelo) : ""} · ${coma(p.edad_meses)} meses</span>
           <span class="meta">${esc(p.hora_llegada)}–${esc(p.hora_salida)} · ${coma(p.km_desde_anterior)} km desde la parada anterior</span></span>
           ${pildoraEstado(e)}<span class="flecha">›</span></button>`; }).join("")}
       </section>`;
@@ -817,7 +818,12 @@
         : sesion ? `<p class="nota">Sesión iniciada: ${esc(sesion.user.email)}${Sync.autorizado ? "" : " — este correo no está autorizado; solicite acceso al coordinador."}</p>
           <button class="opcion" id="bSync"><span>🔄 Sincronizar ahora</span></button><button class="opcion" id="bSalir"><span>Cerrar sesión</span></button>`
         : `<div class="campo"><label for="correo">Correo autorizado</label><input id="correo" type="email" inputmode="email" autocomplete="email" placeholder="nombre@empresa.com"></div>
-          <button class="btn morado" id="bEntrar">Enviar enlace de acceso</button>`}
+          <div class="campo"><label for="clave">Contraseña</label><input id="clave" type="password" autocomplete="current-password" placeholder="Contraseña de su usuario"></div>
+          <button class="btn morado" id="bClave">Entrar con contraseña</button>
+          <p class="nota" style="text-align:center;margin:4px 0 10px">o, sin contraseña:</p>
+          <button class="btn borde" id="bEntrar">Enviarme un código al correo</button>
+          <div class="campo"><label for="codigo">Código del correo</label><input id="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Escriba aquí el código"></div>
+          <button class="btn borde" id="bCodigo">Entrar con el código</button>`}
       <h3>Datos</h3>
       <button class="opcion" id="bCsv"><span>⬇️ Exportar registros (CSV)<small>Estado, responsable, profundidad, humedad y observaciones de cada punto</small></span></button>
       <button class="opcion" id="bGeojson"><span>⬇️ Exportar puntos con estado (GeoJSON)<small>Para QGIS / QField</small></span></button>
@@ -835,7 +841,19 @@
     on("#bEntrar", async () => {
       const correo = $("#correo").value.trim();
       if (!correo) return toast("Escriba su correo");
-      try { await Sync.iniciarSesion(correo); toast("Revise su correo y abra el enlace de acceso"); } catch (e) { toast(e.message); }
+      try { await Sync.iniciarSesion(correo); toast("Le enviamos un código al correo: escríbalo abajo, sin salir de esta página"); $("#codigo").focus(); }
+      catch (e) { toast(/rate|limit|seconds/i.test(e.message) ? "Ya se enviaron varios correos: espere unos minutos o entre con contraseña" : e.message); }
+    });
+    const tras_entrar = async () => { toast("Sesión iniciada: sincronizando…"); setTimeout(pintarMas, 1500); };
+    on("#bClave", async () => {
+      const correo = $("#correo").value.trim(), clave = $("#clave").value;
+      if (!correo || !clave) return toast("Escriba su correo y su contraseña");
+      try { await Sync.entrarConContrasena(correo, clave); await tras_entrar(); } catch (e) { toast(e.message); }
+    });
+    on("#bCodigo", async () => {
+      const correo = $("#correo").value.trim(), codigo = $("#codigo").value.replace(/\D/g, "");
+      if (!correo || codigo.length < 6) return toast("Escriba su correo y el código que le llegó");
+      try { await Sync.verificarCodigo(correo, codigo); await tras_entrar(); } catch (e) { toast(e.message); }
     });
     pintarEstadoBase();
     on("#bMapaBase", async () => {
