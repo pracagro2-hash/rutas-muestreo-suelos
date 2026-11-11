@@ -30,7 +30,7 @@
     { coords: f.geometry.coordinates.map((c) => [c[1], c[0]]) }));
   const PUNTO = Object.fromEntries(PUNTOS.map((p) => [p.id, p]));
   let REG = {};                               // punto_id → registro
-  let filtroDia = "todos", filtroEstado = "todos", seleccionado = null, editando = false;
+  let filtroDia = "todos", filtroEstado = "todos", filtroSector = "todos", seleccionado = null, editando = false;
 
   const usuarioActual = () => (Sync.sesion && Sync.sesion.user && Sync.sesion.user.email) || localStorage.getItem("rutas_responsable") || "";
   const reg = (id) => REG[id] || Logica.registroInicial(PUNTO[id], ING);
@@ -38,7 +38,13 @@
 
   // ---------------- Encabezado ----------------
   document.title = `Rutas de muestreo de suelos — Ingenio ${META.nombre}`;
-  $("#tituloApp").innerHTML = `Rutas de muestreo de suelos<span class="oculto"> — Ingenio ${esc(META.nombre)}</span>`;
+  $("#tituloApp").innerHTML = `Planificador de Muestreo de Suelos<span class="oculto"> — Ingenio ${esc(META.nombre)}</span>`;
+  $("#subtitulo").textContent = `Ingenio ${META.nombre}`;
+  // Sector = hacienda de la suerte (nombre_suerte «Hacienda – Suerte N» de la cédula catastral)
+  const sectorDe = (p) => String(p.nombre_suerte || "").split(" – ")[0].trim() || "Sin sector";
+  const SECTORES = Array.from(new Set(PUNTOS.map(sectorDe))).sort((a, b) => a.localeCompare(b, "es"));
+  $("#selSector").innerHTML = `<option value="todos">Todos los sectores</option>` +
+    SECTORES.map((s) => `<option value="${esc(s)}">${esc(s)} (${PUNTOS.filter((p) => sectorDe(p) === s).length})</option>`).join("");
   $("#selDia").innerHTML = `<option value="todos">Todos los días</option>` +
     RUTAS.map((r) => `<option value="${r.dia}">Día ${r.dia} · ${r.n_puntos} puntos</option>`).join("");
   $("#selEstado").innerHTML = `<option value="todos">Todos los estados</option>` +
@@ -101,7 +107,7 @@
       .on("click", () => abrirFicha(p.id));
   });
   const visible = (p) => (filtroDia === "todos" || String(p.dia) === String(filtroDia)) &&
-    (filtroEstado === "todos" || estadoDe(p.id) === filtroEstado);
+    (filtroEstado === "todos" || estadoDe(p.id) === filtroEstado) && (filtroSector === "todos" || sectorDe(p) === filtroSector);
 
   function pintarMapa(encuadrar) {
     RUTAS.forEach((r) => {
@@ -484,7 +490,7 @@
   window.addEventListener("online", probarSenal);
   setInterval(() => { if (sinSenal) probarSenal(); }, 45000);
   if (navigator.onLine === false) modoSinSenal(true);
-  $("#btnTodo").onclick = () => { filtroDia = "todos"; filtroEstado = "todos"; $("#selDia").value = "todos"; $("#selEstado").value = "todos"; seguir = false; pintarBotonGps(); pintarTodo(true); };
+  $("#btnTodo").onclick = () => { filtroDia = "todos"; filtroEstado = "todos"; filtroSector = "todos"; $("#selDia").value = "todos"; $("#selEstado").value = "todos"; $("#selSector").value = "todos"; seguir = false; pintarBotonGps(); pintarTodo(true); };
   $("#btnSiguiente").onclick = () => {
     const p = Logica.siguientePendiente(PUNTOS, REG, filtroDia);
     if (!p) { toast(filtroDia === "todos" ? "¡Todos los puntos están realizados!" : `El día ${filtroDia} está completo`); return; }
@@ -492,6 +498,7 @@
   };
   $("#selDia").onchange = (e) => { filtroDia = e.target.value; pintarTodo(true); };
   $("#selEstado").onchange = (e) => { filtroEstado = e.target.value; pintarTodo(false); };
+  $("#selSector").onchange = (e) => { filtroSector = e.target.value; pintarTodo(true); };
 
   // ---------------- Avance general ----------------
   function pintarAvance() {
@@ -500,7 +507,6 @@
     const base = dia || { total: st.total, realizado: st.porEstado.realizado, avance: st.avance };
     $("#barraAvance").innerHTML = `${dia ? `Día ${dia.dia}` : "Avance general"}: <b>${base.realizado}/${base.total}</b> realizados (${Math.round(base.avance * 100)} %)` +
       `<div class="barra"><i style="width:${base.avance * 100}%"></i></div>`;
-    $("#subtitulo").textContent = `Ingenio ${META.nombre} · ${st.porEstado.realizado}/${st.total} realizados · ${coma(st.km_total, 0)} km`;
   }
 
   // ---------------- Ficha del punto ----------------
@@ -749,6 +755,211 @@
     });
   }
 
+  // ---------------- Inicio: tablero de operación ----------------
+  // Todo se calcula con los registros reales (este celular + base de datos sincronizada); filtros de día y sector del encabezado.
+  const INK = "#1E293B", MUTED = "#7A7A7A", MORADO = "#5E2D91", LILA_PLAN = "#E4D7F2";
+  const svgIco = (d, extra = "") => `<svg viewBox="0 0 24 24" aria-hidden="true" ${extra}>${d}</svg>`;
+  const ICO = {
+    meta: svgIco('<circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.6" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" stroke="currentColor" stroke-width="1.8"/>'),
+    capas: svgIco('<path d="M12 3 2.5 8 12 13l9.5-5z M2.5 12.2 12 17.2l9.5-5M2.5 16.2 12 21.2l9.5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>'),
+    cal: svgIco('<rect x="3.5" y="5" width="17" height="15.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.6"/><path d="M7 12.5h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zM7 16h2v2H7zm4 0h2v2h-2z" fill="currentColor"/>'),
+    barras: svgIco('<path d="M4 20V12h3.4v8zm6.3 0V7h3.4v13zm6.3 0V3.5H20V20z" fill="currentColor"/>'),
+    torta: svgIco('<path d="M11 3.1A9 9 0 1 0 20.9 13H11z" fill="currentColor"/><path d="M13 1.5V11h9.5A9.5 9.5 0 0 0 13 1.5z" fill="currentColor"/>'),
+    alerta: svgIco('<path d="M12 2.5 1.5 21h21z" fill="currentColor"/><path d="M11 9h2v6h-2zm0 7.6h2v2h-2z" fill="#fff"/>'),
+    plan: svgIco('<rect x="4.5" y="4" width="15" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 2.8h6v3H9z" fill="currentColor"/><path d="m8 13 2.5 2.5L16 10" fill="none" stroke="currentColor" stroke-width="1.6"/>'),
+    pin: svgIco('<path d="M12 2.5a7 7 0 0 0-7 7c0 5.2 7 12 7 12s7-6.8 7-12a7 7 0 0 0-7-7z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="9.5" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/>'),
+    reloj: svgIco('<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5.4l3.6 2.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'),
+    play: svgIco('<path d="M7 4.5v15l12-7.5z" fill="currentColor"/>'),
+  };
+  // Causas de inconvenientes: se reconocen en el texto de Observaciones; solo se muestran las que aparecen en los registros
+  const CAUSAS = [
+    { k: "acceso", t: "Acceso restringido", re: /acceso|porter|permiso|no (nos )?(dejar|permit)|cerrad|candado|vigilan|restring|prohib/i,
+      ico: '<path d="M4 4v16M20 4v16M4 8h16M4 16h16M8.5 8v8M12 8v8M15.5 8v8" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
+    { k: "inundado", t: "Lote inundado", re: /inund|anegad|agua en el lote|encharc/i,
+      ico: '<path d="M2.5 15c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 3-1.5M2.5 19.5c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 3-1.5M12 3v8M8.5 7.5 12 11l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
+    { k: "humedad", t: "Exceso de humedad", re: /h[uú]med|mojad|barr(o|iz)|pantan|saturad/i,
+      ico: '<path d="M12 3s-6 7-6 11a6 6 0 0 0 12 0c0-4-6-11-6-11z" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
+    { k: "clima", t: "Lluvia o clima", re: /lluvi|llov|aguacer|torment|clima|tempestad|rayo/i,
+      ico: '<path d="M7 15.5a4 4 0 0 1-.6-8 5.5 5.5 0 0 1 10.7 1.4A3.3 3.3 0 0 1 17 15.5z M8 18.5l-1 2.5M12 18.5l-1 2.5M16 18.5l-1 2.5" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
+    { k: "cosecha", t: "Cosecha en ejecución", re: /cosech|corte|quema|alce|zafra/i,
+      ico: '<path d="M12 21V8M12 12c-3 0-5-2-5-5 3 0 5 2 5 5zm0 4c3 0 5-2 5-5-3 0-5 2-5 5zM12 8c-1.5-1.5-1.5-3.5 0-5 1.5 1.5 1.5 3.5 0 5z" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
+    { k: "maquinaria", t: "Maquinaria trabajando", re: /maquin|tractor|cami[oó]n|vag[oó]n|alzadora|retro/i,
+      ico: '<circle cx="7" cy="17" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 14V8h7l2 5h6v5M8 8V5h3" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
+    { k: "labores", t: "Labores agrícolas", re: /riego|regad|regando|fertiliz|aplicaci|fumig|labor|siembra|resiembra|preparaci|herbicid|madurante|cultivo/i,
+      ico: '<path d="M4 20h16M7 20v-6M12 20v-9M17 20v-4M7 14c-2 0-3-1.5-3-3 2 0 3 1.5 3 3zm5-3c0-2 1.5-3.5 3.5-3.5 0 2-1.5 3.5-3.5 3.5z" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
+    { k: "vias", t: "Vías en mal estado", re: /\bv[ií]as?\b|carretera|puente|trocha|callej|derrumb|hueco|pasar con el carro/i,
+      ico: '<path d="M5 21 9.5 3M19 21 14.5 3M12 5v2.5M12 10.5V13M12 16v3" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
+    { k: "otros", t: "Otros motivos", re: null, ico: '<circle cx="5.5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="18.5" cy="12" r="1.8" fill="currentColor"/>' },
+    { k: "sin", t: "Sin motivo descrito", re: null, ico: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 9.3a2.6 2.6 0 1 1 3.4 2.5c-.6.2-.9.7-.9 1.3v.8M12 16.5v.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
+  ];
+  function causaDe(texto) {
+    const s = String(texto || "").trim();
+    if (!s) return "sin";
+    const c = CAUSAS.find((x) => x.re && x.re.test(s));
+    return c ? c.k : "otros";
+  }
+  const pct1 = (n, d) => `${coma(d ? n / d * 100 : 0)} %`;
+  const barraArriba = (x, y, w, h, r) => {   // barra con esquinas superiores redondeadas, apoyada en la base
+    if (h <= 0) return "";
+    r = Math.min(r, w / 2, h);
+    return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+  };
+
+  function graficoDias(dias, W) {
+    const H = 176, ml = 24, mr = 4, mt = 20, mb = 24, iw = W - ml - mr, ih = H - mt - mb;
+    const max = Math.max(1, ...dias.map((d) => d.total));
+    const paso = max <= 5 ? 1 : max <= 10 ? 2 : Math.ceil(max / 4);
+    const tope = Math.ceil(max / paso) * paso;
+    const y = (v) => mt + ih - (v / tope) * ih;
+    const n = Math.max(1, dias.length), sx = iw / n, bw = Math.max(6, Math.min(30, sx * 0.66));
+    const cadaEtq = Math.max(1, Math.ceil(26 / sx));
+    let s = "";
+    for (let v = 0; v <= tope; v += paso) {
+      s += `<line x1="${ml}" x2="${W - mr}" y1="${y(v)}" y2="${y(v)}" stroke="${v ? "#ECE8F2" : "#B9B3C4"}" stroke-width="1"/>` +
+        `<text x="${ml - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="${MUTED}">${v}</text>`;
+    }
+    dias.forEach((d, i) => {
+      const cx = ml + sx * (i + 0.5), x = cx - bw / 2;
+      const tip = `Día ${d.dia}: ${d.realizado} de ${d.total} muestras ejecutadas`;
+      s += `<g class="g-barra" data-dia="${d.dia}"><title>${tip}</title>` +
+        `<rect x="${cx - sx / 2}" y="${mt}" width="${sx}" height="${ih}" fill="transparent"/>` +
+        `<path d="${barraArriba(x, y(d.total), bw, mt + ih - y(d.total), 4)}" fill="${LILA_PLAN}"/>` +
+        `<path d="${barraArriba(x, y(d.realizado), bw, mt + ih - y(d.realizado), 4)}" fill="${MORADO}"/>` +
+        `<text x="${cx}" y="${y(Math.max(d.realizado, 0)) - 5}" text-anchor="middle" font-size="12.5" fill="${d.realizado ? MORADO : MUTED}">${d.realizado}</text>` +
+        (i % cadaEtq === 0 ? `<text x="${cx}" y="${H - 7}" text-anchor="middle" font-size="11" fill="${INK}">D${d.dia}</text>` : "") + `</g>`;
+    });
+    return `<svg class="graf" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Muestras ejecutadas y planificadas por día">${s}</svg>`;
+  }
+
+  function graficoDona(pe, total) {
+    const orden = ["realizado", "pendiente", "en_camino", "inconveniente"];
+    const R = 44, G = 15, C = 2 * Math.PI * R, hay = orden.filter((k) => pe[k] > 0).length;
+    let acum = 0, s = `<circle cx="60" cy="60" r="${R}" fill="none" stroke="#EEEEF1" stroke-width="${G}"/>`;
+    orden.forEach((k) => {
+      if (!pe[k] || !total) return;
+      const largo = (pe[k] / total) * C, hueco = hay > 1 ? Math.min(2, largo / 2) : 0;
+      s += `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${E[k].color}" stroke-width="${G}" stroke-dasharray="${largo - hueco} ${C - largo + hueco}"
+        stroke-dashoffset="${-acum}" transform="rotate(-90 60 60)"><title>${E[k].etiqueta}: ${pe[k]} (${pct1(pe[k], total)})</title></circle>`;
+      acum += largo;
+    });
+    s += `<text x="60" y="62" text-anchor="middle" font-size="26" font-weight="bold" fill="${INK}">${total}</text>` +
+      `<text x="60" y="80" text-anchor="middle" font-size="12" fill="${MUTED}">Total</text>`;
+    return `<svg class="dona" viewBox="0 0 120 120" role="img" aria-label="Distribución de las muestras por estado">${s}</svg>`;
+  }
+
+  function pintarInicio() {
+    const cont = $("#vistaInicio .contenido"); if (!cont) return;
+    const sub = PUNTOS.filter((p) => (filtroDia === "todos" || String(p.dia) === String(filtroDia)) &&
+      (filtroSector === "todos" || sectorDe(p) === filtroSector));
+    const st = Logica.estadisticas(sub, REG, RUTAS), pe = st.porEstado, tot = st.total;
+    const dias = st.dias, jornHechas = dias.filter((d) => d.realizado > 0).length;
+    const kpi = (k, t) => `<button class="kpi" data-estado="${k}" style="background:${E[k].suave}" title="Ver los puntos «${E[k].etiqueta}» en Ejecución">
+        ${circuloEstado(k, 36)}<b>${pe[k]}</b><span>${t}</span></button>`;
+
+    // Productividad: mayor y menor jornada ejecutada
+    const ejec = dias.filter((d) => d.realizado > 0);
+    const mayor = ejec.length ? ejec.reduce((a, b) => (b.realizado > a.realizado ? b : a)) : null;
+    const menor = ejec.length > 1 ? ejec.reduce((a, b) => (b.realizado < a.realizado ? b : a)) : null;
+
+    // Cuellos de botella: puntos con inconvenientes (todos) y puntos no realizados cuya observación describe una causa
+    const casos = {};
+    sub.forEach((p) => {
+      const r = reg(p.id), e = r.estado || "pendiente";
+      if (e === "realizado") return;
+      const c = causaDe(r.observaciones);
+      if (e === "inconveniente" || (c !== "sin" && c !== "otros")) casos[c] = (casos[c] || 0) + 1;
+    });
+    const totalCasos = Object.values(casos).reduce((a, b) => a + b, 0);
+    const filasCausa = CAUSAS.filter((c) => casos[c.k]).sort((a, b) => casos[b.k] - casos[a.k]);
+    const maxCaso = Math.max(1, ...filasCausa.map((c) => casos[c.k]));
+
+    // Próxima jornada: primer día del plan con muestras sin realizar
+    const prox = RUTAS.map((r) => ({ r, pend: PUNTOS.filter((p) => p.dia === r.dia && estadoDe(p.id) !== "realizado") }))
+      .find((x) => x.pend.length);
+
+    const anchoCont = cont.clientWidth || Math.min(window.innerWidth - 24, 1000);
+    const dosCol = anchoCont >= 340;
+    const anchoGraf = Math.max(150, Math.floor((dosCol ? (anchoCont - 12) / 2 : anchoCont) - 30));
+
+    cont.innerHTML = `
+      <div class="kpis">${kpi("realizado", "Realizadas")}${kpi("pendiente", "Pendientes")}${kpi("en_camino", "En camino")}${kpi("inconveniente", "Inconvenientes")}</div>
+
+      <section class="tarj">
+        <div class="tarj-cab"><h3><span class="t-ico">${ICO.meta}</span>Cumplimiento del plan</h3><span class="pct-pill">${pct1(pe.realizado, tot)}</span></div>
+        <div class="barra-cumpl"><i style="width:${tot ? (pe.realizado / tot) * 100 : 0}%"></i></div>
+        <div class="cumpl-pie"><span><span class="m-ico">${ICO.capas}</span>${pe.realizado} / ${tot} muestras</span>
+          <span><span class="m-ico">${ICO.cal}</span>Jornadas: ${jornHechas} / ${dias.length}</span></div>
+      </section>
+
+      <div class="dash-2${dosCol ? "" : " una"}">
+        <section class="tarj">
+          <h3><span class="t-ico">${ICO.barras}</span>Muestras por día</h3>
+          ${dias.length ? graficoDias(dias, anchoGraf) : `<p class="vacio">Sin jornadas con los filtros seleccionados.</p>`}
+          <div class="ley-graf"><span><i style="background:${MORADO}"></i>Ejecutadas</span><span><i style="background:${LILA_PLAN}"></i>Planificadas</span></div>
+          <p class="prod">${mayor ? `<span class="pr-max">▲</span> Mayor: <b>Día ${mayor.dia}</b> (${mayor.realizado})` : "Aún no hay jornadas ejecutadas"}${menor && menor !== mayor ? `<br><span class="pr-min">▼</span> Menor: <b>Día ${menor.dia}</b> (${menor.realizado})` : ""}</p>
+        </section>
+        <section class="tarj">
+          <h3><span class="t-ico">${ICO.torta}</span>Estado de las muestras</h3>
+          <div class="dona-env">${graficoDona(pe, tot)}
+            <ul class="ley-dona">${["realizado", "pendiente", "en_camino", "inconveniente"].map((k) =>
+              `<li><i style="background:${E[k].color}"></i><span>${{ realizado: "Realizadas", pendiente: "Pendientes", en_camino: "En camino", inconveniente: "Inconvenientes" }[k]}<small>${pe[k]} (${pct1(pe[k], tot)})</small></span></li>`).join("")}</ul>
+          </div>
+        </section>
+      </div>
+
+      <section class="tarj">
+        <h3><span class="t-ico">${ICO.alerta}</span>Principales cuellos de botella</h3>
+        ${filasCausa.length ? `<div class="causas">${filasCausa.map((c, i) => `<div class="causa">
+            <span class="c-ico">${svgIco(c.ico)}</span><span class="c-txt">${c.t}</span>
+            <span class="c-barra"><i style="width:${(casos[c.k] / maxCaso) * 100}%;opacity:${Math.max(0.45, 1 - i * 0.14)}"></i></span>
+            <span class="c-n">${casos[c.k]} (${pct1(casos[c.k], totalCasos)})</span></div>`).join("")}</div>
+            <p class="nota-tarj">Causas tomadas de las observaciones de ${totalCasos} punto(s) no realizado(s) con inconvenientes.</p>`
+          : `<p class="vacio">Sin inconvenientes registrados${filtroDia !== "todos" || filtroSector !== "todos" ? " con los filtros seleccionados" : ""}. Cuando un punto se marque
+             «Con inconvenientes», la causa escrita en Observaciones (acceso, humedad, lluvia, cosecha, labores, vías…) aparecerá aquí.</p>`}
+      </section>
+
+      <div class="dash-2${dosCol ? "" : " una"}">
+        <section class="tarj">
+          <h3><span class="t-ico">${ICO.plan}</span>Plan de ejecución</h3>
+          <ol class="linea-t">${dias.map((d) => {
+            const est = d.realizado >= d.total ? "ok" : d.realizado > 0 ? "parcial" : "pend";
+            const actual = prox && prox.r.dia === d.dia;
+            return `<li class="${est}${actual ? " actual" : ""}"><button data-dia="${d.dia}" title="Ver los puntos del día ${d.dia}">
+              <span class="lt-ico">${est === "ok" ? icoEstado("realizado", 16) : ""}</span><span class="lt-dia">Día ${d.dia}</span><span class="lt-n">${d.realizado} / ${d.total}</span></button></li>`;
+          }).join("")}</ol>
+        </section>
+        <section class="tarj">
+          <h3><span class="t-ico">${ICO.cal}</span>Próxima jornada</h3>
+          ${prox ? `<div class="prox-dia"><span>${ICO.cal}</span>Día ${prox.r.dia}</div>
+            <ul class="prox-datos">
+              <li><span>${ICO.capas}</span>${prox.pend.length} muestra${prox.pend.length === 1 ? "" : "s"} planificada${prox.pend.length === 1 ? "" : "s"}</li>
+              <li><span>${ICO.pin}</span>Distancia estimada: ${coma(prox.r.km)} km</li>
+              <li><span>${ICO.reloj}</span>Tiempo estimado: ${coma(prox.r.horas_totales)} h</li>
+            </ul>
+            <button class="btn-jornada" id="btnJornada">${ICO.play}Iniciar jornada</button>`
+          : `<div class="prox-dia ok">${icoEstado("realizado", 22)}Plan completado</div><p class="vacio">Todas las muestras del plan están realizadas.</p>`}
+        </section>
+      </div>
+      <p class="nota">Indicadores calculados con los registros de campo${Sync.configurado ? " guardados en este celular y sincronizados con la base de datos" : " guardados en este celular"};
+        se actualizan con cada cambio. Distancias y tiempos del plan de rutas (salida ${esc(META.hora_salida)}, jornada máxima ${coma(META.jornada_h, 0)} h).</p>`;
+
+    cont.querySelectorAll(".kpi").forEach((b) => {
+      b.onclick = () => { filtroEstado = b.dataset.estado; $("#selEstado").value = filtroEstado; mostrarVista("lista"); pintarTodo(false); };
+    });
+    const verDia = (dia) => { filtroDia = String(dia); $("#selDia").value = filtroDia; mostrarVista("lista"); pintarTodo(true); };
+    cont.querySelectorAll(".linea-t button, .g-barra").forEach((b) => { b.onclick = () => verDia(b.dataset.dia); });
+    const bj = $("#btnJornada");
+    if (bj) bj.onclick = () => {
+      filtroDia = String(prox.r.dia); filtroEstado = "todos"; $("#selDia").value = filtroDia; $("#selEstado").value = "todos";
+      pintarTodo(true); iniciarNavegacion(siguienteDestino(prox.r.dia));
+    };
+  }
+  let anchoInicio = 0;
+  window.addEventListener("resize", () => {
+    const w = window.innerWidth; if (Math.abs(w - anchoInicio) < 30) return; anchoInicio = w;
+    if ($("#vistaInicio.activa")) pintarInicio();
+  });
+
   // ---------------- Estadísticas ----------------
   function pintarEstadisticas() {
     const st = Logica.estadisticas(PUNTOS, REG, RUTAS), pe = st.porEstado, pc = (x) => `${Math.round(x * 100)} %`;
@@ -931,6 +1142,7 @@
   function mostrarVista(v) {
     document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("activo", b.dataset.vista === v));
     document.querySelectorAll(".vista").forEach((s) => s.classList.toggle("activa", s.id === "vista" + v[0].toUpperCase() + v.slice(1)));
+    if (v === "inicio") pintarInicio();
     if (v === "lista") pintarLista();
     if (v === "estadisticas") pintarEstadisticas();
     if (v === "mas") pintarMas();
@@ -942,6 +1154,7 @@
   function pintarTodo(encuadrar) {
     pintarMapa(encuadrar); pintarAvance();
     const activa = document.querySelector(".vista.activa");
+    if (activa && activa.id === "vistaInicio") pintarInicio();
     if (activa && activa.id === "vistaLista") pintarLista();
     if (activa && activa.id === "vistaEstadisticas") pintarEstadisticas();
   }

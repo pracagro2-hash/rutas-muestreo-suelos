@@ -15,12 +15,12 @@
 <body>
 <header id="cabecera">
   <div class="cab-fila">
-    <div class="cab-titulo"><h1 id="tituloApp">Rutas de muestreo de suelos — Ingenio Manuelita</h1><small id="subtitulo">Cargando…</small></div>
+    <span class="cab-logo" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"><path d="M24 27 7 33.5 24 40l17-6.5z"/><path d="M7 38.5 24 45l17-6.5"/><path d="M24 27V13"/><path fill="#fff" d="M24 19c-1.8-5.2-6.6-7.6-11.5-6.8.2 5.3 5.6 8.6 11.5 6.8z"/><path fill="#fff" d="M24 15.5c1.8-5.2 6.6-7.6 11.5-6.8-.2 5.3-5.6 8.6-11.5 6.8z"/></svg></span><div class="cab-titulo"><h1 id="tituloApp">Planificador de Muestreo de Suelos</h1><small id="subtitulo">Cargando…</small></div>
     <button id="chipSync" class="local" title="Estado de la sincronización">…</button>
   </div>
   <div class="filtros">
-    <select id="selDia" aria-label="Filtrar por día"></select>
-    <select id="selEstado" aria-label="Filtrar por estado"></select>
+    <label class="filtro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zM5 9h14v10H5z"/></svg><select id="selDia" aria-label="Filtrar por día"></select></label>
+    <label class="filtro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 16-7.4-5.7L3 11.6l9 7 9-7-1.6-1.3zm0-2.5 7.4-5.8L21 6.5l-9-7-9 7 1.6 1.2z" transform="translate(0 3)"/></svg><select id="selSector" aria-label="Filtrar por sector (hacienda)"></select></label>
   </div>
 </header>
 
@@ -37,8 +37,10 @@
 <div id="navBanner" role="status" aria-live="polite"></div>
 <div id="navPanel"></div>
 
+<section class="vista activa" id="vistaInicio" aria-label="Inicio"><div class="contenido"></div></section>
 <section class="vista" id="vistaLista" aria-label="Lista de puntos">
-  <div class="contenido"><h2>Puntos de muestreo</h2>
+  <div class="contenido"><h2>Ejecución del muestreo</h2>
+    <select id="selEstado" class="buscador" aria-label="Filtrar por estado"></select>
     <input id="buscar" class="buscador" type="search" placeholder="Buscar por ID o suerte" aria-label="Buscar punto">
     <div id="listaPuntos"></div></div>
 </section>
@@ -50,10 +52,11 @@
 <div id="toast" role="status"></div>
 
 <nav id="nav" aria-label="Navegación">
-  <button data-vista="mapa" class="activo"><span class="ic"><svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg></span>Mapa</button>
-  <button data-vista="lista"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg></span>Lista</button>
-  <button data-vista="estadisticas"><span class="ic"><svg viewBox="0 0 24 24"><path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z"/></svg></span>Estadísticas</button>
-  <button data-vista="mas"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></span>Más</button>
+  <button data-vista="inicio" class="activo"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></span>Inicio</button>
+  <button data-vista="mapa"><span class="ic"><svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg></span>Planificación</button>
+  <button data-vista="lista"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg></span>Ejecución</button>
+  <button data-vista="estadisticas"><span class="ic"><svg viewBox="0 0 24 24"><path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z"/></svg></span>Análisis</button>
+  <button data-vista="mas"><span class="ic"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></span>Más</button>
 </nav>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
