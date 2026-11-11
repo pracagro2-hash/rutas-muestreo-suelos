@@ -319,3 +319,21 @@ body.navegando .fabs { top: calc(var(--alto-cab) + 16px); }
   .prox-dia { font-size: 20px; } .btn-jornada { font-size: 15px; gap: 7px; } .dash-2 { gap: 10px; } .dash-2 .tarj h3 { font-size: 14px; } .prox-datos li, .linea-t button { font-size: 13px; }
   .cab-titulo h1 { font-size: 15px; } .cab-logo, .cab-logo svg { width: 36px; height: 36px; }
 }
+
+/* Muestras realizadas por fecha */
+.resumen-f { font-size: 13px; color: #4A4A4A; margin: -4px 0 8px; }
+.g-fecha { cursor: pointer; }
+.fechas { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.fecha { border: 1px solid #EEE9F5; border-radius: 12px; overflow: hidden; background: #fff; }
+.fecha > summary { list-style: none; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 11px 12px; background: var(--lila); cursor: pointer; }
+.fecha > summary::-webkit-details-marker { display: none; }
+.f-tit { color: #2E1450; font-size: 14.5px; }
+.f-n { color: #fff; background: #00B574; border-radius: 10px; padding: 2px 10px; font-size: 12.5px; align-self: center; grid-row: span 2; }
+.fecha > summary small { color: #6B6B6B; font-size: 12px; }
+.f-pts { list-style: none; margin: 0; padding: 0; }
+.f-pts button { display: flex; align-items: center; gap: 12px; width: 100%; border: none; border-top: 1px solid #F2EFF6; background: #fff; padding: 10px 12px; text-align: left; }
+.f-h { font-size: 13px; color: var(--morado); min-width: 42px; }
+.f-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.f-txt b { font-weight: normal; font-size: 14.5px; color: #222; }
+.f-txt small { font-size: 12px; color: #6B6B6B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f-pts .flecha { color: var(--morado); font-size: 18px; }

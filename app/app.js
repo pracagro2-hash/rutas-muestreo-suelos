@@ -47,7 +47,8 @@
     SECTORES.map((s) => `<option value="${esc(s)}">${esc(s)} (${PUNTOS.filter((p) => sectorDe(p) === s).length})</option>`).join("");
   $("#selDia").innerHTML = `<option value="todos">Todos los días</option>` +
     RUTAS.map((r) => `<option value="${r.dia}">Día ${r.dia} · ${r.n_puntos} puntos</option>`).join("");
-  $("#selEstado").innerHTML = `<option value="todos">Todos los estados</option>` +
+  const fijarSel = (sel, v) => { const el = $(sel); if (el) el.value = v; };
+  if ($("#selEstado")) $("#selEstado").innerHTML = `<option value="todos">Todos los estados</option>` +
     Object.entries(E).map(([k, v]) => `<option value="${k}">${v.etiqueta}</option>`).join("");
 
   function toast(msg) {
@@ -490,14 +491,14 @@
   window.addEventListener("online", probarSenal);
   setInterval(() => { if (sinSenal) probarSenal(); }, 45000);
   if (navigator.onLine === false) modoSinSenal(true);
-  $("#btnTodo").onclick = () => { filtroDia = "todos"; filtroEstado = "todos"; filtroSector = "todos"; $("#selDia").value = "todos"; $("#selEstado").value = "todos"; $("#selSector").value = "todos"; seguir = false; pintarBotonGps(); pintarTodo(true); };
+  $("#btnTodo").onclick = () => { filtroDia = "todos"; filtroEstado = "todos"; filtroSector = "todos"; $("#selDia").value = "todos"; fijarSel("#selEstado", "todos"); $("#selSector").value = "todos"; seguir = false; pintarBotonGps(); pintarTodo(true); };
   $("#btnSiguiente").onclick = () => {
     const p = Logica.siguientePendiente(PUNTOS, REG, filtroDia);
     if (!p) { toast(filtroDia === "todos" ? "¡Todos los puntos están realizados!" : `El día ${filtroDia} está completo`); return; }
     mostrarVista("mapa"); mapa.setView([p.lat, p.lon], 16); abrirFicha(p.id);
   };
   $("#selDia").onchange = (e) => { filtroDia = e.target.value; pintarTodo(true); };
-  $("#selEstado").onchange = (e) => { filtroEstado = e.target.value; pintarTodo(false); };
+  if ($("#selEstado")) $("#selEstado").onchange = (e) => { filtroEstado = e.target.value; pintarTodo(false); };
   $("#selSector").onchange = (e) => { filtroSector = e.target.value; pintarTodo(true); };
 
   // ---------------- Avance general ----------------
@@ -732,6 +733,7 @@
 
   // ---------------- Lista ----------------
   function pintarLista() {
+    if (!$("#listaPuntos")) return;
     const q = ($("#buscar") && $("#buscar").value.trim().toLowerCase()) || "";
     const html = RUTAS.filter((r) => filtroDia === "todos" || String(r.dia) === String(filtroDia)).map((r) => {
       const pts = PUNTOS.filter((p) => p.dia === r.dia && visible(p) && (!q || p.id.toLowerCase().includes(q) || String(p.suerte).toLowerCase().includes(q) || String(p.nombre_suerte || "").toLowerCase().includes(q)))
@@ -847,13 +849,48 @@
     return `<svg class="dona" viewBox="0 0 120 120" role="img" aria-label="Distribución de las muestras por estado">${s}</svg>`;
   }
 
+  // Muestras realizadas agrupadas por fecha de campo (fecha y hora del muestreo; si falta, la del último registro)
+  function realizadasPorFecha(sub) {
+    const g = {}; let sinFecha = 0;
+    sub.forEach((p) => {
+      const r = reg(p.id); if ((r.estado || "pendiente") !== "realizado") return;
+      const iso = r.fecha_hora_muestreo || r.actualizado_en; if (!iso) { sinFecha++; return; }
+      const d = new Date(iso), k = d.toLocaleDateString("en-CA");
+      (g[k] = g[k] || []).push({ p, r, d });
+    });
+    return { fechas: Object.keys(g).sort().map((k) => ({ k, items: g[k].sort((a, b) => a.d - b.d) })), sinFecha };
+  }
+  const fechaCorta = (k) => new Date(k + "T12:00:00").toLocaleDateString("es-CO", { day: "numeric", month: "short" }).replace(".", "").replace(" de ", " ");
+  const fechaLarga = (k) => { const s = new Date(k + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" }); return s[0].toUpperCase() + s.slice(1); };
+  const horaDe = (d) => d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false });
+  function graficoFechas(fechas, W) {
+    const H = 190, ml = 26, mr = 6, mt = 22, mb = 26, iw = W - ml - mr, ih = H - mt - mb, VERDE = "#00B574";
+    const max = Math.max(1, ...fechas.map((f) => f.items.length));
+    const paso = max <= 5 ? 1 : max <= 10 ? 2 : Math.ceil(max / 4), tope = Math.ceil(max / paso) * paso;
+    const y = (v) => mt + ih - (v / tope) * ih;
+    const n = Math.max(1, fechas.length), sx = iw / n, bw = Math.max(6, Math.min(40, sx * 0.62));
+    const cadaEtq = Math.max(1, Math.ceil(34 / sx));
+    let s = "";
+    for (let v = 0; v <= tope; v += paso) s += `<line x1="${ml}" x2="${W - mr}" y1="${y(v)}" y2="${y(v)}" stroke="${v ? "#ECE8F2" : "#B9B3C4"}"/>` +
+      `<text x="${ml - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="${MUTED}">${v}</text>`;
+    fechas.forEach((f, i) => {
+      const cx = ml + sx * (i + 0.5), v = f.items.length;
+      s += `<g class="g-fecha" data-k="${f.k}"><title>${fechaLarga(f.k)}: ${v} muestra${v === 1 ? "" : "s"}</title>` +
+        `<rect x="${cx - sx / 2}" y="${mt}" width="${sx}" height="${ih}" fill="transparent"/>` +
+        `<path d="${barraArriba(cx - bw / 2, y(v), bw, mt + ih - y(v), 4)}" fill="${VERDE}"/>` +
+        `<text x="${cx}" y="${y(v) - 6}" text-anchor="middle" font-size="${sx < 18 ? 10 : 13}" fill="${INK}">${v}</text>` +
+        (i % cadaEtq === 0 ? `<text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="11" fill="${INK}">${fechaCorta(f.k)}</text>` : "") + `</g>`;
+    });
+    return `<svg class="graf" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Muestras realizadas por fecha">${s}</svg>`;
+  }
+
   function pintarTablero() {
     const cont = $("#vistaEstadisticas .contenido"); if (!cont) return;
     const sub = PUNTOS.filter((p) => (filtroDia === "todos" || String(p.dia) === String(filtroDia)) &&
       (filtroSector === "todos" || sectorDe(p) === filtroSector));
     const st = Logica.estadisticas(sub, REG, RUTAS), pe = st.porEstado, tot = st.total;
     const dias = st.dias, jornHechas = dias.filter((d) => d.realizado > 0).length;
-    const kpi = (k, t) => `<button class="kpi" data-estado="${k}" style="background:${E[k].suave}" title="Ver los puntos «${E[k].etiqueta}» en Ejecución">
+    const kpi = (k, t) => `<button class="kpi" data-estado="${k}" style="background:${E[k].suave}" title="Ver los puntos «${E[k].etiqueta}» en el mapa">
         ${circuloEstado(k, 36)}<b>${pe[k]}</b><span>${t}</span></button>`;
 
     // Productividad: mayor y menor jornada ejecutada
@@ -878,6 +915,7 @@
       .find((x) => x.pend.length);
 
     const anchoCont = cont.clientWidth || Math.min(window.innerWidth - 24, 1000);
+    const pf = realizadasPorFecha(sub), nReal = pf.fechas.reduce((a, f) => a + f.items.length, 0);
     const dosCol = anchoCont >= 340;
     const anchoGraf = Math.max(150, Math.floor((dosCol ? (anchoCont - 12) / 2 : anchoCont) - 30));
 
@@ -891,9 +929,25 @@
           <span><span class="m-ico">${ICO.cal}</span>Jornadas: ${jornHechas} / ${dias.length}</span></div>
       </section>
 
+      <section class="tarj">
+        <h3><span class="t-ico">${ICO.cal}</span>Muestras realizadas por fecha</h3>
+        ${pf.fechas.length ? `<p class="resumen-f">${nReal} muestra${nReal === 1 ? "" : "s"} en ${pf.fechas.length} fecha${pf.fechas.length === 1 ? "" : "s"} de campo ·
+            promedio ${coma(nReal / pf.fechas.length)} por fecha${filtroSector !== "todos" ? ` · sector ${esc(filtroSector)}` : ""}</p>
+          ${graficoFechas(pf.fechas, Math.max(240, Math.floor(anchoCont - 30)))}
+          <p class="nota-tarj">Toque una barra o una fecha para ver las muestras de ese día.</p>
+          <div class="fechas">${pf.fechas.slice().reverse().map((f, i) => `<details class="fecha" id="f-${f.k}"${i === 0 ? " open" : ""}>
+            <summary><span class="f-tit">${fechaLarga(f.k)}</span><span class="f-n">${f.items.length} muestra${f.items.length === 1 ? "" : "s"}</span>
+              <small>${horaDe(f.items[0].d)} – ${horaDe(f.items[f.items.length - 1].d)}</small></summary>
+            <ol class="f-pts">${f.items.map((x) => `<li><button data-id="${esc(x.p.id)}"><span class="f-h">${horaDe(x.d)}</span>
+              <span class="f-txt"><b>${esc(x.p.id)}</b><small>${esc(x.p.nombre_suerte || "Suerte " + x.p.suerte)}${x.p.orden_suelo ? " · " + esc(x.p.orden_suelo) : ""}${x.r.responsable ? " · " + esc(x.r.responsable) : ""}</small></span>
+              <span class="flecha">›</span></button></li>`).join("")}</ol></details>`).join("")}</div>
+          ${pf.sinFecha ? `<p class="nota-tarj">${pf.sinFecha} muestra(s) realizada(s) sin fecha registrada.</p>` : ""}`
+        : `<p class="vacio">Aún no hay muestras realizadas${filtroSector !== "todos" || filtroDia !== "todos" ? " con los filtros seleccionados" : ""}.</p>`}
+      </section>
+
       <div class="dash-2${dosCol ? "" : " una"}">
         <section class="tarj">
-          <h3><span class="t-ico">${ICO.barras}</span>Muestras por día</h3>
+          <h3><span class="t-ico">${ICO.barras}</span>Muestras por día del plan</h3>
           ${dias.length ? graficoDias(dias, anchoGraf) : `<p class="vacio">Sin jornadas con los filtros seleccionados.</p>`}
           <div class="ley-graf"><span><i style="background:${MORADO}"></i>Ejecutadas</span><span><i style="background:${LILA_PLAN}"></i>Planificadas</span></div>
           <p class="prod">${mayor ? `<span class="pr-max">▲</span> Mayor: <b>Día ${mayor.dia}</b> (${mayor.realizado})` : "Aún no hay jornadas ejecutadas"}${menor && menor !== mayor ? `<br><span class="pr-min">▼</span> Menor: <b>Día ${menor.dia}</b> (${menor.realizado})` : ""}</p>
@@ -945,13 +999,22 @@
       detalleDias();
 
     cont.querySelectorAll(".kpi").forEach((b) => {
-      b.onclick = () => { filtroEstado = b.dataset.estado; $("#selEstado").value = filtroEstado; mostrarVista("lista"); pintarTodo(false); };
+      b.onclick = () => {
+        filtroEstado = b.dataset.estado; fijarSel("#selEstado", filtroEstado); mostrarVista("mapa"); pintarTodo(true);
+        toast(`Mapa: solo puntos «${E[filtroEstado].etiqueta}» · toque ⤢ para ver todos`);
+      };
     });
-    const verDia = (dia) => { filtroDia = String(dia); $("#selDia").value = filtroDia; mostrarVista("lista"); pintarTodo(true); };
+    const verDia = (dia) => { filtroDia = String(dia); $("#selDia").value = filtroDia; mostrarVista("mapa"); pintarTodo(true); };
     cont.querySelectorAll(".linea-t button, .g-barra").forEach((b) => { b.onclick = () => verDia(b.dataset.dia); });
+    cont.querySelectorAll(".g-fecha").forEach((g) => {
+      g.onclick = () => { const d = $("#f-" + g.dataset.k); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "start" }); } };
+    });
+    cont.querySelectorAll(".f-pts button").forEach((b) => {
+      b.onclick = () => { const q = PUNTO[b.dataset.id]; mostrarVista("mapa"); mapa.setView([q.lat, q.lon], 16); abrirFicha(q.id); };
+    });
     const bj = $("#btnJornada");
     if (bj) bj.onclick = () => {
-      filtroDia = String(prox.r.dia); filtroEstado = "todos"; $("#selDia").value = filtroDia; $("#selEstado").value = "todos";
+      filtroDia = String(prox.r.dia); filtroEstado = "todos"; $("#selDia").value = filtroDia; fijarSel("#selEstado", "todos");
       pintarTodo(true); iniciarNavegacion(siguienteDestino(prox.r.dia));
     };
   }
@@ -1000,7 +1063,6 @@
       </div>
       <h3>Mi recorrido GPS</h3>
       <p class="nota" id="resumenRecorrido">Calculando…</p>
-      <button class="opcion" id="bRecorrido"><span>⬇️ Exportar recorrido (GeoJSON)<small>Tramos con hora, velocidad y precisión de cada ubicación, para calibrar los tiempos del modelo de rutas</small></span></button>
       <h3>Mapa sin señal</h3>
       <p class="nota" id="estadoMapaBase"></p>
       <button class="opcion" id="bMapaBase"><span>⬇️ Descargar o actualizar el mapa sin señal<small>Imagen satelital Sentinel-2 de toda la zona del ingenio (sin nubes, 2025–2026), para ver el mapa sin internet</small></span></button>
@@ -1018,10 +1080,7 @@
           <button class="btn borde" id="bEntrar">Enviarme un código al correo</button>
           <div class="campo"><label for="codigo">Código del correo</label><input id="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Escriba aquí el código"></div>
           <button class="btn borde" id="bCodigo">Entrar con el código</button>`}
-      <h3>Datos</h3>
-      <button class="opcion" id="bCsv"><span>⬇️ Exportar registros (CSV)<small>Estado, responsable, profundidad, humedad y observaciones de cada punto</small></span></button>
-      <button class="opcion" id="bGeojson"><span>⬇️ Exportar puntos con estado (GeoJSON)<small>Para QGIS / QField</small></span></button>
-      <a class="opcion" href="rutas_${ING.toLowerCase()}.kml" download><span>⬇️ Descargar KML del plan<small>Sede, rutas por día y puntos (QField / Google Earth)</small></span></a>
+      <h3>Aplicación</h3>
       ${eventoInstalar ? `<button class="opcion" id="bInstalar"><span>📲 Instalar la aplicación en este celular</span></button>` : ""}
       <a class="opcion" href="index.html"><span>🏠 Volver a la portada<small>Otros ingenios</small></span></a>
       <h3>Almacenamiento en este celular</h3>
@@ -1131,7 +1190,7 @@
     if (v === "mapa") setTimeout(() => mapa.invalidateSize(), 50);
   }
   document.querySelectorAll("#nav button").forEach((b) => { b.onclick = () => mostrarVista(b.dataset.vista); });
-  $("#buscar").oninput = pintarLista;
+  if ($("#buscar")) $("#buscar").oninput = pintarLista;
 
   function pintarTodo(encuadrar) {
     pintarMapa(encuadrar); pintarAvance();
