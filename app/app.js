@@ -825,7 +825,7 @@
         `<rect x="${cx - sx / 2}" y="${mt}" width="${sx}" height="${ih}" fill="transparent"/>` +
         `<path d="${barraArriba(x, y(d.total), bw, mt + ih - y(d.total), 4)}" fill="${LILA_PLAN}"/>` +
         `<path d="${barraArriba(x, y(d.realizado), bw, mt + ih - y(d.realizado), 4)}" fill="${MORADO}"/>` +
-        `<text x="${cx}" y="${y(Math.max(d.realizado, 0)) - 5}" text-anchor="middle" font-size="12.5" fill="${d.realizado ? MORADO : MUTED}">${d.realizado}</text>` +
+        `<text x="${cx}" y="${y(Math.max(d.realizado, 0)) - 5}" text-anchor="middle" font-size="${sx < 15 ? 9 : sx < 20 ? 10.5 : 12.5}" fill="${d.realizado ? MORADO : MUTED}">${d.realizado}</text>` +
         (i % cadaEtq === 0 ? `<text x="${cx}" y="${H - 7}" text-anchor="middle" font-size="11" fill="${INK}">D${d.dia}</text>` : "") + `</g>`;
     });
     return `<svg class="graf" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Muestras ejecutadas y planificadas por día">${s}</svg>`;
@@ -847,8 +847,8 @@
     return `<svg class="dona" viewBox="0 0 120 120" role="img" aria-label="Distribución de las muestras por estado">${s}</svg>`;
   }
 
-  function pintarInicio() {
-    const cont = $("#vistaInicio .contenido"); if (!cont) return;
+  function pintarTablero() {
+    const cont = $("#vistaEstadisticas .contenido"); if (!cont) return;
     const sub = PUNTOS.filter((p) => (filtroDia === "todos" || String(p.dia) === String(filtroDia)) &&
       (filtroSector === "todos" || sectorDe(p) === filtroSector));
     const st = Logica.estadisticas(sub, REG, RUTAS), pe = st.porEstado, tot = st.total;
@@ -881,7 +881,7 @@
     const dosCol = anchoCont >= 340;
     const anchoGraf = Math.max(150, Math.floor((dosCol ? (anchoCont - 12) / 2 : anchoCont) - 30));
 
-    cont.innerHTML = `
+    cont.innerHTML = `<h2>Estadísticas del muestreo</h2>
       <div class="kpis">${kpi("realizado", "Realizadas")}${kpi("pendiente", "Pendientes")}${kpi("en_camino", "En camino")}${kpi("inconveniente", "Inconvenientes")}</div>
 
       <section class="tarj">
@@ -941,7 +941,8 @@
         </section>
       </div>
       <p class="nota">Indicadores calculados con los registros de campo${Sync.configurado ? " guardados en este celular y sincronizados con la base de datos" : " guardados en este celular"};
-        se actualizan con cada cambio. Distancias y tiempos del plan de rutas (salida ${esc(META.hora_salida)}, jornada máxima ${coma(META.jornada_h, 0)} h).</p>`;
+        se actualizan con cada cambio. Distancias y tiempos del plan de rutas (salida ${esc(META.hora_salida)}, jornada máxima ${coma(META.jornada_h, 0)} h).</p>` +
+      detalleDias();
 
     cont.querySelectorAll(".kpi").forEach((b) => {
       b.onclick = () => { filtroEstado = b.dataset.estado; $("#selEstado").value = filtroEstado; mostrarVista("lista"); pintarTodo(false); };
@@ -957,30 +958,14 @@
   let anchoInicio = 0;
   window.addEventListener("resize", () => {
     const w = window.innerWidth; if (Math.abs(w - anchoInicio) < 30) return; anchoInicio = w;
-    if ($("#vistaInicio.activa")) pintarInicio();
+    if ($("#vistaEstadisticas.activa")) pintarEstadisticas();
   });
 
   // ---------------- Estadísticas ----------------
-  function pintarEstadisticas() {
-    const st = Logica.estadisticas(PUNTOS, REG, RUTAS), pe = st.porEstado, pc = (x) => `${Math.round(x * 100)} %`;
-    const tarjeta = (n, t, k) => `<div class="tarjeta" data-estado="${k}" style="background:${E[k].suave}">${circuloEstado(k, 30)}<b>${n}</b><span>${t}</span></div>`;
-    const ang = Math.round(st.avance * 360);
-    $("#vistaEstadisticas .contenido").innerHTML = `<h2>Estadísticas del muestreo</h2>
-      <div class="avance-total">
-        <span>Avance total</span>
-        <div class="anillo" style="background:conic-gradient(var(--verde) ${ang}deg, #ECECEF ${ang}deg)"><i>${coma(st.avance * 100)} %</i></div>
-        <div><b>${pe.realizado} de ${st.total}</b><span>puntos realizados</span></div>
-      </div>
-      <div class="tarjetas">
-        ${tarjeta(pe.realizado, "Realizados", "realizado")}${tarjeta(pe.pendiente, "Pendientes", "pendiente")}
-        ${tarjeta(pe.en_camino, "En camino", "en_camino")}${tarjeta(pe.inconveniente, "Inconvenientes", "inconveniente")}
-      </div>
-      <h3>Plan por día</h3>
-      <div class="plan-dias">${st.dias.map((d) => `<button class="plan-dia" data-dia="${d.dia}"><span class="sw" style="background:${COLORES[d.dia]}"></span>
-          <span class="pd-txt"><span>Día ${d.dia}</span><small>${coma(d.km)} km · ${coma(d.horas_totales)} h · regreso ${esc(d.regreso || "—")}${(RUTAS.find((r) => r.dia === d.dia) || {}).peajes ? ` · ${RUTAS.find((r) => r.dia === d.dia).peajes} peaje(s)` : ""}</small></span>
-          <span class="pd-barra"><i style="width:${d.avance * 100}%;background:${COLORES[d.dia]}"></i></span>
-          <span class="pd-n">${d.realizado}/${d.total}</span><span class="flecha">›</span></button>`).join("")}</div>
-      <h3>Detalle por día</h3>
+  function detalleDias() {
+    const st = Logica.estadisticas(PUNTOS.filter((p) => (filtroDia === "todos" || String(p.dia) === String(filtroDia)) &&
+      (filtroSector === "todos" || sectorDe(p) === filtroSector)), REG, RUTAS), pe = st.porEstado, pc = (x) => `${Math.round(x * 100)} %`;
+    return `<section class="tarj"><h3><span class="t-ico">${ICO.cal}</span>Detalle por día</h3>
       <div class="tabla-env"><table class="tabla"><thead><tr><th>Día</th><th>Realizados</th><th>Avance</th><th>Pend.</th><th>Inconv.</th><th>Km</th><th>H. viaje</th><th>H. muestreo</th><th>H. total</th><th>Regreso</th></tr></thead><tbody>
         ${st.dias.map((d) => `<tr><td><span class="pto" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${COLORES[d.dia]}"></span> ${d.dia}</td>
           <td>${d.realizado}/${d.total}</td><td>${pc(d.avance)}</td><td>${d.pendiente + d.en_camino}</td><td>${d.inconveniente}</td>
@@ -990,11 +975,9 @@
       </tbody></table></div>
       <p class="nota">Las distancias y los tiempos son los del plan de rutas (${esc(META.metodo_rutas)}), con salida a las ${esc(META.hora_salida)}
         y jornada máxima de ${coma(META.jornada_h, 0)} h; incluyen factores de riesgo de transporte y de campo. Los estados se calculan con los registros
-        guardados${Sync.configurado ? " y sincronizados" : " en este celular"}. Plan generado el ${esc(META.generado)}.</p>`;
-    document.querySelectorAll(".plan-dia").forEach((b) => {
-      b.onclick = () => { filtroDia = b.dataset.dia; $("#selDia").value = filtroDia; mostrarVista("mapa"); pintarTodo(true); };
-    });
+        guardados${Sync.configurado ? " y sincronizados" : " en este celular"}. Plan generado el ${esc(META.generado)}.</p></section>`;
   }
+  function pintarEstadisticas() { pintarTablero(); }
 
   // ---------------- Más ----------------
   let eventoInstalar = null;
@@ -1142,7 +1125,6 @@
   function mostrarVista(v) {
     document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("activo", b.dataset.vista === v));
     document.querySelectorAll(".vista").forEach((s) => s.classList.toggle("activa", s.id === "vista" + v[0].toUpperCase() + v.slice(1)));
-    if (v === "inicio") pintarInicio();
     if (v === "lista") pintarLista();
     if (v === "estadisticas") pintarEstadisticas();
     if (v === "mas") pintarMas();
@@ -1154,7 +1136,6 @@
   function pintarTodo(encuadrar) {
     pintarMapa(encuadrar); pintarAvance();
     const activa = document.querySelector(".vista.activa");
-    if (activa && activa.id === "vistaInicio") pintarInicio();
     if (activa && activa.id === "vistaLista") pintarLista();
     if (activa && activa.id === "vistaEstadisticas") pintarEstadisticas();
   }

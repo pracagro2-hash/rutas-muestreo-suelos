@@ -245,8 +245,8 @@ body.navegando #navPanel { display: block; position: fixed; left: 0; right: 0; b
 body.navegando .fabs { top: calc(var(--alto-cab) + 16px); }
 
 /* ---------- Inicio: tablero de operación ---------- */
-#vistaInicio { background: #F6F4FA; padding-top: 12px; }
-#vistaInicio .contenido { max-width: 1000px; }
+#vistaEstadisticas { background: #F6F4FA; }
+#vistaEstadisticas .contenido { max-width: 1000px; }
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
 .kpi { border: none; border-radius: 16px; padding: 12px 4px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
 .kpi b { font-size: 28px; line-height: 1.1; color: #1E1E1E; }
@@ -303,7 +303,7 @@ body.navegando .fabs { top: calc(var(--alto-cab) + 16px); }
   padding: 14px; font-size: 24px; font-weight: bold; margin-bottom: 8px; }
 .prox-dia > span { width: 32px; height: 32px; color: var(--morado); }
 .prox-dia.ok { background: #E2F7EE; color: #0B9A5E; font-size: 18px; }
-.prox-dia.ok svg { width: 26px; height: 26px; background: #00B574; border-radius: 50%; padding: 3px; }
+.prox-dia.ok svg { width: 30px; height: 30px; min-width: 30px; flex: none; background: #00B574; border-radius: 50%; padding: 4px; box-sizing: border-box; }
 .prox-datos { list-style: none; margin: 0 0 12px; padding: 0; }
 .prox-datos li { display: flex; align-items: center; gap: 12px; padding: 9px 2px; border-bottom: 1px solid #F0EDF4; font-size: 14px; color: #2B2B2B; }
 .prox-datos li span { width: 24px; height: 24px; color: var(--morado); flex: none; }
