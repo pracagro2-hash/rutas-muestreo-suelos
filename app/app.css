@@ -20,8 +20,11 @@ button { cursor: pointer; }
   background: radial-gradient(120% 140% at 100% 100%, rgba(126,217,87,.28) 0%, rgba(126,217,87,0) 38%),
               linear-gradient(115deg, #4A1F78 0%, #5E2D91 45%, #7A3DB3 100%);
   padding: calc(10px + env(safe-area-inset-top)) 12px 12px; }
-.cab-logo { flex: none; width: 44px; height: 44px; padding-right: 10px; margin-right: 2px; border-right: 1.5px solid rgba(255,255,255,.55); box-sizing: content-box; }
-.cab-logo svg { width: 44px; height: 44px; }
+.cab-logo { flex: none; height: 44px; padding-right: 10px; margin-right: 2px; border-right: 1.5px solid rgba(255,255,255,.55); display: flex; align-items: center; }
+.cab-logo img { height: 40px; width: auto; display: block; }
+.cab-logo.placa { height: 50px; padding: 7px 12px; margin-right: 4px; border: none; border-radius: 12px; background: #fff;
+  box-shadow: 0 2px 8px rgba(30,10,60,.28); box-sizing: border-box; }
+.cab-logo.placa img { height: auto; max-height: 36px; max-width: 150px; }
 #cabecera .cab-titulo h1 { color: #fff; }
 #cabecera .cab-titulo small { color: rgba(255,255,255,.88); }
 .oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -317,7 +320,8 @@ body.navegando .fabs { top: calc(var(--alto-cab) + 16px); }
   .causa { grid-template-columns: 22px minmax(92px, 1.3fr) 1fr auto; gap: 7px; font-size: 12.5px; }
   .tarj { padding: 12px; } .tarj h3 { font-size: 14.5px; }
   .prox-dia { font-size: 20px; } .btn-jornada { font-size: 15px; gap: 7px; } .dash-2 { gap: 10px; } .dash-2 .tarj h3 { font-size: 14px; } .prox-datos li, .linea-t button { font-size: 13px; }
-  .cab-titulo h1 { font-size: 15px; } .cab-logo, .cab-logo svg { width: 36px; height: 36px; }
+  .cab-titulo h1 { font-size: 15px; } .cab-logo img { height: 34px; }
+  .cab-logo.placa { height: 46px; padding: 6px 9px; } .cab-logo.placa img { max-height: 32px; max-width: 112px; }
 }
 
 /* Muestras realizadas por fecha */
@@ -339,3 +343,9 @@ body.navegando .fabs { top: calc(var(--alto-cab) + 16px); }
 .f-pts .flecha { color: var(--morado); font-size: 18px; }
 
 #btnNorte svg { width: 30px; height: 30px; transition: transform .15s; }
+
+/* En el celular el estado de sincronización se muestra como un punto de color (el texto completo está en Más) */
+@media (max-width: 560px) {
+  #chipSync { font-size: 0; gap: 0; width: 30px; height: 30px; padding: 0; justify-content: center; align-self: flex-start; }
+  #chipSync::before { width: 12px; height: 12px; }
+}

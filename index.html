@@ -16,15 +16,18 @@
  .wrap{max-width:1100px;margin:auto;padding:16px}
  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
  .card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 6px rgba(0,0,0,.1);border-top:6px solid var(--gris)}
+ .oculto{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
  .card h2{margin:0 0 4px;font-size:19px} .card p{margin:6px 0;font-size:13px} .sede{color:var(--muted);font-size:12px!important}
  .barra{height:8px;background:var(--gris);border-radius:4px;overflow:hidden;margin:8px 0 4px} .barra i{display:block;height:100%;background:var(--verde)}
  .btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;margin:8px 6px 0 0;padding:0 14px;border-radius:10px;
    font-size:14px;text-decoration:none;color:#fff} .sec{background:#fff;color:var(--morado);border:1px solid var(--morado)}
  .nota{font-size:12px;color:var(--muted);line-height:1.6;margin-top:18px}
+ header .ceni{height:54px;display:block;margin:0 auto 10px}
+ .logo-ing{height:64px;display:flex;align-items:center;margin:2px 0 10px} .logo-ing img{max-height:56px;max-width:85%;width:auto}
 </style>
 </head>
 <body>
-<header><h1>Rutas de muestreo de suelos</h1><p>Stock de carbono orgánico del suelo · Incauca, Manuelita, Providencia y Castilla</p></header>
+<header><img class="ceni" src="app/logos/cenicana.png" alt="Cenicaña"><h1>Planificador de Muestreo de Suelos</h1><p>Stock de carbono orgánico del suelo · Incauca, Manuelita, Providencia y Castilla</p></header>
 <div class="wrap">
   <div class="grid" id="tarjetas"></div>
   <p class="nota">Cada ingenio tiene su aplicación de campo: rutas por día, ubicación GPS en tiempo real, navegación al punto,
@@ -40,6 +43,7 @@
 <script>
 (function () {
   const COLORES = ["#00C97E", "#5E2D91", "#FFC20E", "#EC3D96"];
+  const LOGOS = { INCAUCA: "incauca", MANUELITA: "manuelita", CASTILLA: "castilla" };
   const fmt = (v, d = 0) => Number(v).toLocaleString("es-CO", { minimumFractionDigits: d, maximumFractionDigits: d });
   const D = window.DATOS_RUTAS || {};
   const orden = ["INCAUCA", "MANUELITA", "PROVIDENCIA", "CASTILLA"].filter((k) => D[k]);
@@ -47,11 +51,12 @@
     const d = D[k], rutas = d.rutas.features.map((f) => f.properties);
     const km = rutas.reduce((s, r) => s + r.km, 0), n = d.puntos.features.length, slug = k.toLowerCase();
     return `<div class="card" style="border-top-color:${COLORES[i % 4]}">
-      <h2>${d.meta.nombre}</h2><p class="sede">Sede: ${d.meta.sede.nombre}</p>
+      ${LOGOS[k] ? `<div class="logo-ing"><img src="app/logos/${LOGOS[k]}.png" alt="${d.meta.nombre}"></div><h2 class="oculto">${d.meta.nombre}</h2>` : `<h2>${d.meta.nombre}</h2>`}
+      <p class="sede">Ingenio ${d.meta.nombre} · sede ${d.meta.sede.nombre}</p>
       <p><b>${n}</b> puntos · <b>${rutas.length}</b> días · <b>${fmt(km)}</b> km</p>
       <div class="barra"><i id="barra-${slug}" style="width:0"></i></div><p id="avance-${slug}" class="sede">Avance: —</p>
       <a class="btn" style="background:${COLORES[i % 4]}" href="${slug}.html">Abrir mapa</a>
-      <a class="btn sec" href="rutas_${slug}.kml" download>KML (QField)</a></div>`;
+</div>`;
   }).join("");
   // Avance real según los registros guardados en este dispositivo (IndexedDB de la aplicación)
   const sol = indexedDB.open("rutas_muestreo_suelos", 1);

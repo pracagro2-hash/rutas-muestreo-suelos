@@ -40,6 +40,9 @@
   document.title = `Rutas de muestreo de suelos — Ingenio ${META.nombre}`;
   $("#tituloApp").innerHTML = `Planificador de Muestreo de Suelos<span class="oculto"> — Ingenio ${esc(META.nombre)}</span>`;
   $("#subtitulo").textContent = `Ingenio ${META.nombre}`;
+  // Logo del ingenio (app/logos/<ingenio>.png, fondo transparente) sobre placa blanca; sin logo queda el símbolo de Cenicaña
+  const LOGO_ING = { INCAUCA: "incauca", MANUELITA: "manuelita", CASTILLA: "castilla" }[ING];
+  if (LOGO_ING) $(".cab-logo").outerHTML = `<span class="cab-logo placa"><img src="app/logos/${LOGO_ING}.png" alt="${esc(META.nombre)}"></span>`;
   // Sector = hacienda de la suerte (nombre_suerte «Hacienda – Suerte N» de la cédula catastral)
   const sectorDe = (p) => String(p.nombre_suerte || "").split(" – ")[0].trim() || "Sin sector";
   const SECTORES = Array.from(new Set(PUNTOS.map(sectorDe))).sort((a, b) => a.localeCompare(b, "es"));
@@ -1201,7 +1204,7 @@
   // ---------------- Sincronización e inicio ----------------
   function pintarEstadoSync(est) {
     const chip = $("#chipSync");
-    chip.className = est.codigo; chip.textContent = est.texto;
+    chip.className = est.codigo; chip.textContent = est.texto; chip.title = est.texto; chip.setAttribute("aria-label", est.texto);
     const t = $("#estadoSyncTexto"); if (t) t.textContent = est.texto;
   }
   $("#chipSync").onclick = () => mostrarVista("mas");
