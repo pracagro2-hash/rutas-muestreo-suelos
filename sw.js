@@ -6,7 +6,7 @@
  * - Base de datos (Supabase): nunca se guarda en caché.
  * Al publicar cambios en el código, incremente VERSION para que los celulares descarguen la versión nueva.
  */
-const VERSION = "rutas-muestreo-v20-2026-11-11";
+const VERSION = "rutas-muestreo-v21-2026-11-11";
 const CACHE_APP = `app-${VERSION}`;
 const CACHE_TESELAS = "teselas-mapa";
 const CACHE_BASE = "mapa-base-s2-v1";   // mapa base Sentinel-2 sin internet (lo llena la aplicación; no se borra al actualizar)
@@ -18,7 +18,7 @@ const NUCLEO = [
   "app/iconos/icono-192.png", "app/iconos/icono-512.png",
   ...INGENIOS.flatMap((i) => [`${i}.html`, `data/${i}.js`, `rutas_${i}.kml`]),
 ];
-const EXTERNOS = ["https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"];
+const EXTERNOS = ["https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js", "https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"];
 
 self.addEventListener("install", (ev) => {
   ev.waitUntil((async () => {

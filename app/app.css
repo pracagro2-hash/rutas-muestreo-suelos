@@ -337,3 +337,5 @@ body.navegando .fabs { top: calc(var(--alto-cab) + 16px); }
 .f-txt b { font-weight: normal; font-size: 14.5px; color: #222; }
 .f-txt small { font-size: 12px; color: #6B6B6B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .f-pts .flecha { color: var(--morado); font-size: 18px; }
+
+#btnNorte svg { width: 30px; height: 30px; transition: transform .15s; }

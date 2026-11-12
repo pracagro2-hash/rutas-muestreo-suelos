@@ -57,7 +57,9 @@
   }
 
   // ---------------- Mapa ----------------
-  const mapa = L.map("mapa", { zoomControl: false, attributionControl: true, preferCanvas: false });
+  const mapa = L.map("mapa", { zoomControl: false, attributionControl: true, preferCanvas: false,
+    rotate: true, touchRotate: true, bearing: 0, rotateControl: false });   // giro: leaflet-rotate (si no carga, el mapa funciona sin giro)
+  const rumboMapa = () => (mapa.getBearing ? mapa.getBearing() : 0);
   L.control.zoom({ position: "bottomleft" }).addTo(mapa);
   const capaSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     { maxZoom: 19, attribution: "Imagen © Esri" });
@@ -110,6 +112,19 @@
   const visible = (p) => (filtroDia === "todos" || String(p.dia) === String(filtroDia)) &&
     (filtroEstado === "todos" || estadoDe(p.id) === filtroEstado) && (filtroSector === "todos" || sectorDe(p) === filtroSector);
 
+  // Brújula: aparece cuando el mapa está girado; al tocarla vuelve el norte arriba
+  const btnNorte = document.createElement("button");
+  btnNorte.className = "fab"; btnNorte.id = "btnNorte"; btnNorte.title = "Orientar el mapa al norte"; btnNorte.setAttribute("aria-label", "Orientar al norte");
+  btnNorte.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 2.5 16.5 12h-9z" fill="#EC3D96"/><path d="M12 21.5 7.5 12h9z" fill="#9E9E9E"/><text x="12" y="10.6" font-size="5" text-anchor="middle" fill="#fff" font-family="Tahoma">N</text></svg>`;
+  $(".fabs").appendChild(btnNorte);
+  btnNorte.onclick = () => { if (mapa.setBearing) mapa.setBearing(0); };
+  function pintarNorte() {
+    const b = rumboMapa(), girado = Math.abs(((b % 360) + 360) % 360) > 0.5 && Math.abs(((b % 360) + 360) % 360 - 360) > 0.5;
+    btnNorte.style.display = girado ? "flex" : "none";
+    btnNorte.firstChild.style.transform = `rotate(${b}deg)`;
+  }
+  mapa.on("rotate", () => { pintarNorte(); girarFlecha(); }); pintarNorte();
+
   function pintarMapa(encuadrar) {
     RUTAS.forEach((r) => {
       const ver = filtroDia === "todos" || String(r.dia) === String(filtroDia);
@@ -157,7 +172,7 @@
   function girarFlecha() {
     const el = marcaGps && marcaGps.getElement() && marcaGps.getElement().querySelector(".gps-flecha");
     if (!el || rumbo === null) return;
-    el.classList.remove("sin-rumbo"); el.style.transform = `translate(-50%, -50%) rotate(${rumbo}deg)`;
+    el.classList.remove("sin-rumbo"); el.style.transform = `translate(-50%, -50%) rotate(${rumbo + rumboMapa()}deg)`;
   }
   async function guardarUbicacion(pos) {
     if (pos.coords.accuracy > PRECISION_MAX_M) return;
@@ -995,8 +1010,7 @@
         </section>
       </div>
       <p class="nota">Indicadores calculados con los registros de campo${Sync.configurado ? " guardados en este celular y sincronizados con la base de datos" : " guardados en este celular"};
-        se actualizan con cada cambio. Distancias y tiempos del plan de rutas (salida ${esc(META.hora_salida)}, jornada máxima ${coma(META.jornada_h, 0)} h).</p>` +
-      detalleDias();
+        se actualizan con cada cambio. Distancias y tiempos del plan de rutas (salida ${esc(META.hora_salida)}, jornada máxima ${coma(META.jornada_h, 0)} h).</p>`;
 
     cont.querySelectorAll(".kpi").forEach((b) => {
       b.onclick = () => {
@@ -1025,21 +1039,6 @@
   });
 
   // ---------------- Estadísticas ----------------
-  function detalleDias() {
-    const st = Logica.estadisticas(PUNTOS.filter((p) => (filtroDia === "todos" || String(p.dia) === String(filtroDia)) &&
-      (filtroSector === "todos" || sectorDe(p) === filtroSector)), REG, RUTAS), pe = st.porEstado, pc = (x) => `${Math.round(x * 100)} %`;
-    return `<section class="tarj"><h3><span class="t-ico">${ICO.cal}</span>Detalle por día</h3>
-      <div class="tabla-env"><table class="tabla"><thead><tr><th>Día</th><th>Realizados</th><th>Avance</th><th>Pend.</th><th>Inconv.</th><th>Km</th><th>H. viaje</th><th>H. muestreo</th><th>H. total</th><th>Regreso</th></tr></thead><tbody>
-        ${st.dias.map((d) => `<tr><td><span class="pto" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${COLORES[d.dia]}"></span> ${d.dia}</td>
-          <td>${d.realizado}/${d.total}</td><td>${pc(d.avance)}</td><td>${d.pendiente + d.en_camino}</td><td>${d.inconveniente}</td>
-          <td>${coma(d.km)}</td><td>${coma(d.horas_viaje)}</td><td>${coma(d.horas_muestreo)}</td><td>${coma(d.horas_totales)}</td><td>${esc(d.regreso || "—")}</td></tr>`).join("")}
-        <tr class="total"><td>Total</td><td>${pe.realizado}/${st.total}</td><td>${pc(st.avance)}</td><td>${pe.pendiente + pe.en_camino}</td><td>${pe.inconveniente}</td>
-          <td>${coma(st.km_total)}</td><td>${coma(st.horas_viaje)}</td><td>${coma(st.horas_muestreo)}</td><td>${coma(st.horas_totales)}</td><td></td></tr>
-      </tbody></table></div>
-      <p class="nota">Las distancias y los tiempos son los del plan de rutas (${esc(META.metodo_rutas)}), con salida a las ${esc(META.hora_salida)}
-        y jornada máxima de ${coma(META.jornada_h, 0)} h; incluyen factores de riesgo de transporte y de campo. Los estados se calculan con los registros
-        guardados${Sync.configurado ? " y sincronizados" : " en este celular"}. Plan generado el ${esc(META.generado)}.</p></section>`;
-  }
   function pintarEstadisticas() { pintarTablero(); }
 
   // ---------------- Más ----------------
