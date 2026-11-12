@@ -1117,8 +1117,8 @@
       <p class="nota" id="estadoMapaBase"></p>
       <button class="opcion" id="bMapaBase">${icoOp(ICO.descargar)}<span>Descargar o actualizar el mapa sin señal<small>Imagen satelital Sentinel-2 de toda la zona del ingenio (sin nubes, 2025–2026), para ver el mapa sin internet</small></span></button>
       <button class="opcion" id="bBorrarRecorrido">${icoOp(ICO.borrar, "rojo")}<span style="color:var(--magenta)">Borrar el recorrido guardado de este ingenio</span></button>
-      <h3>Base de datos y sincronización</h3>
-      <div class="aviso info" id="estadoSyncTexto">${esc($("#chipSync").textContent)}</div>
+      <h3>Conexión</h3>
+      <div class="aviso conexion ${/^(sincronizado|pendiente|sincronizando)$/.test($("#chipSync").className) ? "on" : "off"}" id="estadoSyncTexto">${esc($("#chipSync").textContent)}</div>
       ${!Sync.configurado ? `<p class="nota">La base de datos central aún no está configurada: los registros se guardan solo en este celular.
           Para compartirlos entre el equipo siga la <a href="https://github.com/pracagro2-hash/rutas-muestreo-suelos/blob/main/docs/CONFIGURACION_SUPABASE.md" target="_blank" rel="noopener">guía de configuración</a>.</p>`
         : sesion ? `<p class="nota">Sesión iniciada: ${esc(sesion.user.email)}${Sync.autorizado ? "" : " — este correo no está autorizado; solicite acceso al coordinador."}</p>
@@ -1264,7 +1264,8 @@
   function pintarEstadoSync(est) {
     const chip = $("#chipSync");
     chip.className = est.codigo; chip.textContent = est.texto; chip.title = est.texto; chip.setAttribute("aria-label", est.texto);
-    const t = $("#estadoSyncTexto"); if (t) t.textContent = est.texto;
+    const t = $("#estadoSyncTexto");
+    if (t) { t.textContent = est.texto; t.className = "aviso conexion " + (/^(sincronizado|pendiente|sincronizando)$/.test(est.codigo) ? "on" : "off"); }
   }
   $("#chipSync").onclick = () => mostrarVista("mas");
   async function recargarRegistros() {

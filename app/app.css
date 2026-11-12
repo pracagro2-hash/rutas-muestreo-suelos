@@ -37,7 +37,7 @@ button { cursor: pointer; }
 #chipSync::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--gris-medio); flex: none; }
 #chipSync.sincronizado::before { background: var(--verde); }
 #chipSync.pendiente::before, #chipSync.sincronizando::before { background: var(--amarillo); }
-#chipSync.sin_conexion::before, #chipSync.error::before, #chipSync.no_autorizado::before { background: var(--magenta); }
+#chipSync.sin_conexion::before, #chipSync.error::before, #chipSync.no_autorizado::before, #chipSync.sin_sesion::before { background: var(--magenta); }
 #chipSync.local::before { background: var(--turquesa); }
 .filtros { display: flex; gap: 10px; margin-top: 10px; }
 .filtro { flex: 1; min-width: 0; position: relative; }
@@ -398,3 +398,9 @@ body.navegando .fabs { top: calc(var(--alto-cab) + 16px); }
 .op-ico.rojo { background: #FDEAF3; }
 .op-ico.rojo svg { stroke: var(--magenta); }
 .opcion > .op-ico { flex: none; }
+.aviso.conexion { display: flex; align-items: center; gap: 9px; }
+.aviso.conexion::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.aviso.conexion.on { background: #E6F8F1; border: 1px solid #00B574; color: #00784D; }
+.aviso.conexion.on::before { background: #00B574; }
+.aviso.conexion.off { background: #FDEAF3; border: 1px solid var(--magenta); color: #A3195E; }
+.aviso.conexion.off::before { background: var(--magenta); }

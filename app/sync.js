@@ -26,16 +26,16 @@
   }
 
   async function estadoActual() {
-    if (!configurado) return { codigo: "local", texto: "Solo en este celular" };
+    if (!configurado) return { codigo: "local", texto: "Desconectado · solo en este celular" };
     if (!navigator.onLine) {
       const n = (await Almacen.leerCola()).filter((o) => o.ingenio === ingenio).length;
-      return { codigo: "sin_conexion", texto: n ? `Sin conexión · ${n} por subir` : "Sin conexión" };
+      return { codigo: "sin_conexion", texto: n ? `Desconectado · ${n} por subir` : "Desconectado" };
     }
-    if (!sesion) return { codigo: "sin_sesion", texto: "Inicie sesión para sincronizar" };
-    if (!autorizado) return { codigo: "no_autorizado", texto: "Correo no autorizado" };
-    if (ultimoError) return { codigo: "error", texto: "Error de sincronización" };
+    if (!sesion) return { codigo: "sin_sesion", texto: "Desconectado · inicie sesión" };
+    if (!autorizado) return { codigo: "no_autorizado", texto: "Desconectado · correo no autorizado" };
+    if (ultimoError) return { codigo: "error", texto: "Desconectado · no se pudo conectar" };
     const n = (await Almacen.leerCola()).filter((o) => o.ingenio === ingenio).length;
-    return n ? { codigo: "pendiente", texto: `${n} cambio(s) por subir` } : { codigo: "sincronizado", texto: "Sincronizado" };
+    return n ? { codigo: "pendiente", texto: `Conectado · ${n} cambio(s) por subir` } : { codigo: "sincronizado", texto: "Conectado" };
   }
   const avisarEstado = async () => alEstado(await estadoActual());
 
@@ -113,7 +113,7 @@
   async function sincronizar() {
     if (!configurado || !cliente || !sesion || !autorizado || !navigator.onLine || sincronizando) { await avisarEstado(); return; }
     sincronizando = true;
-    alEstado({ codigo: "sincronizando", texto: "Sincronizando…" });
+    alEstado({ codigo: "sincronizando", texto: "Conectado · actualizando…" });
     try {
       const cola = (await Almacen.leerCola()).filter((o) => o.ingenio === ingenio)
         .sort((a, b) => (a.tipo === "foto" ? 0 : 1) - (b.tipo === "foto" ? 0 : 1) || a.id - b.id);
