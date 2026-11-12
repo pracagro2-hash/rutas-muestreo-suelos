@@ -53,9 +53,10 @@ button { cursor: pointer; }
 .leaflet-container { font-family: Tahoma, Geneva, Verdana, sans-serif; }
 .leaflet-control-attribution { font-size: 9px; max-width: 60vw; }
 .fabs { position: fixed; right: 10px; top: calc(var(--alto-cab) + 10px); z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
-.fab { width: 48px; height: 48px; border-radius: 12px; border: none; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.28);
-  font-size: 21px; display: flex; align-items: center; justify-content: center; padding: 0; }
-.fab svg { width: 24px; height: 24px; fill: #333; }
+.fab { width: 48px; height: 48px; border-radius: 50%; border: none; background: #fff; font-size: 21px; display: flex; align-items: center;
+  justify-content: center; padding: 0; box-shadow: inset 0 0 0 2px #E4D7F2, 0 3px 10px rgba(94,45,145,.35), 0 1px 3px rgba(0,0,0,.18); }
+.fab svg { width: 26px; height: 26px; fill: var(--morado); }
+.fab:active { transform: scale(.94); }
 #btnGps { border-radius: 50%; background: var(--morado); width: 52px; height: 52px; margin-left: -2px; box-shadow: 0 3px 10px rgba(94,45,145,.55); }
 #btnGps svg { fill: #fff; transform: rotate(45deg); }
 #btnGps.activo { background: #fff; outline: 3px solid var(--morado); }
@@ -81,6 +82,8 @@ button { cursor: pointer; }
 .sede-ico { width: 38px; height: 38px; border-radius: 50%; background: var(--morado); border: 3px solid #fff; box-shadow: 0 0 6px rgba(0,0,0,.55);
   display: flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); }
 .sede-ico svg { width: 22px; height: 22px; }
+.sede-ico.ceni { background: #fff; border-color: var(--morado); width: 40px; height: 40px; }
+.sede-ico.ceni img { width: 26px; height: 26px; object-fit: contain; }
 .gps-flecha { width: 34px; height: 34px; transform: translate(-50%, -50%); transition: transform .4s ease; filter: drop-shadow(0 1px 3px rgba(0,0,0,.7)); }
 .gps-flecha svg { width: 100%; height: 100%; }
 .gps-flecha path { fill: var(--morado); stroke: #fff; stroke-width: 3; stroke-linejoin: round; }
@@ -359,3 +362,39 @@ body.navegando .fabs { top: calc(var(--alto-cab) + 16px); }
   .cab-titulo h1 { font-size: 14px; }
   .cab-fila { gap: 7px; }
 }
+
+/* ---------- Más: punto de salida, leyenda en tarjetas e íconos de opciones ---------- */
+.salidas { display: grid; gap: 10px; margin-bottom: 6px; }
+.salida-op { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 2px solid var(--gris); border-radius: 14px;
+  background: #fff; text-align: left; font: inherit; color: var(--texto); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.salida-op.activa { border-color: var(--morado); background: #FBF8FE; box-shadow: 0 3px 12px rgba(94,45,145,.18); }
+.salida-logo { flex: none; width: 74px; height: 50px; border-radius: 10px; background: #fff; box-shadow: inset 0 0 0 1px var(--gris);
+  display: flex; align-items: center; justify-content: center; padding: 5px; }
+.salida-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.salida-txt { flex: 1; min-width: 0; }
+.salida-txt b { display: block; color: var(--morado); font-size: 14.5px; }
+.salida-txt small { display: block; font-size: 12px; color: var(--gris-medio); line-height: 1.35; }
+.salida-txt small.salida-res { color: #00B574; margin-top: 2px; }
+.salida-check { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--gris); display: flex; align-items: center; justify-content: center; }
+.salida-check svg { width: 16px; height: 16px; fill: transparent; }
+.salida-op.activa .salida-check { background: var(--morado); border-color: var(--morado); }
+.salida-op.activa .salida-check svg { fill: #fff; }
+.ley-tarj { background: #fff; border: 1px solid var(--gris); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; }
+.ley-tarj h4 { margin: 0 0 10px; font-size: 13px; color: var(--morado); }
+.ley-estados { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.ley-estados div { display: flex; align-items: center; gap: 9px; font-size: 13.5px; }
+.ley-dias { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 12px; }
+.ley-dias span { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; }
+.ley-dias i { width: 26px; height: 6px; border-radius: 3px; }
+.ley-fila { display: flex; align-items: center; gap: 12px; font-size: 13.5px; line-height: 1.35; padding: 6px 0; }
+.ley-fila + .ley-fila { border-top: 1px solid #F1ECF7; }
+.ley-fila .ley-ico { flex: none; width: 70px; min-width: 70px; }
+.ley-ico .mk-id { position: static; }
+.ley-rec { width: 48px; height: 12px; }
+.op-ico { flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--lila-fuerte); display: flex; align-items: center; justify-content: center; }
+.op-ico svg { width: 21px; height: 21px; fill: none; stroke: var(--morado); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.op-ico.verde { background: #E0F7EE; }
+.op-ico.verde svg { stroke: #00B574; }
+.op-ico.rojo { background: #FDEAF3; }
+.op-ico.rojo svg { stroke: var(--magenta); }
+.opcion > .op-ico { flex: none; }

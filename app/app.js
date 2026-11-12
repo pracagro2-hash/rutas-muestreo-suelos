@@ -21,6 +21,19 @@
 
   if (!DATOS) { document.body.innerHTML = "<p style='padding:20px'>No se encontraron los datos de este ingenio.</p>"; return; }
 
+  // ---------------- Punto de salida: sede del ingenio (plan base) o Cenicaña (datos.salidas.cenicana) ----------------
+  const CLAVE_SALIDA = "rutas_salida_" + ING;
+  const SALIDA = (DATOS.salidas || {})[localStorage.getItem(CLAVE_SALIDA)] ? localStorage.getItem(CLAVE_SALIDA) : "ingenio";
+  const OPCIONES_SALIDA = Object.assign({ ingenio: { sede: DATOS.meta.sede, rutas: DATOS.rutas } }, DATOS.salidas || {});
+  if (SALIDA !== "ingenio") {
+    const s = DATOS.salidas[SALIDA];
+    DATOS.meta = Object.assign({}, DATOS.meta, { sede: s.sede, metodo_rutas: s.metodo_rutas });
+    DATOS.colores = s.colores; DATOS.rutas = s.rutas;
+    DATOS.puntos.features.forEach((f) => Object.assign(f.properties, s.asignacion[f.properties.id] || {}));
+    ((DATOS.peajes || {}).features || []).forEach((f, j) => { f.properties.dias = s.peajes_dias[j] || []; });
+  }
+  const DESDE_CENI = SALIDA === "cenicana";
+
   // ---------------- Datos (GeoJSON → objetos) ----------------
   const META = DATOS.meta;
   const COLORES = DATOS.colores;
@@ -39,7 +52,7 @@
   // ---------------- Encabezado ----------------
   document.title = `Rutas de muestreo de suelos — Ingenio ${META.nombre}`;
   $("#tituloApp").innerHTML = `Planificador de Muestreo de Suelos<span class="oculto"> — Ingenio ${esc(META.nombre)}</span>`;
-  $("#subtitulo").textContent = `Ingenio ${META.nombre}`;
+  $("#subtitulo").textContent = DESDE_CENI ? `${META.nombre} · salida Cenicaña` : `Ingenio ${META.nombre}`;
   // Logo del ingenio (app/logos/<ingenio>.png, fondo transparente) sobre placa blanca; sin logo queda el símbolo de Cenicaña
   const LOGO_ING = { INCAUCA: "incauca", MANUELITA: "manuelita", PROVIDENCIA: "providencia", CASTILLA: "castilla" }[ING];
   if (LOGO_ING) $(".cab-logo").outerHTML = `<span class="cab-logo placa"><img src="app/logos/${LOGO_ING}.png" alt="${esc(META.nombre)}"></span>`;
@@ -82,10 +95,12 @@
   capaSat.addTo(mapa);
   let enSatelite = true;
 
-  const ICONO_SEDE = "<div class='sede-ico'><svg viewBox='0 0 24 24' aria-hidden='true'><path fill='#fff' d='M2 21V11l5 3.2V11l5 3.2V11l3 1.9V4h2.2v9.3H18V6h2.2v15z'/>" +
+  const ICONO_FABRICA = "<div class='sede-ico'><svg viewBox='0 0 24 24' aria-hidden='true'><path fill='#fff' d='M2 21V11l5 3.2V11l5 3.2V11l3 1.9V4h2.2v9.3H18V6h2.2v15z'/>" +
     "<path fill='#5E2D91' d='M5 16.5h2v2H5zm4.5 0h2v2h-2zm4.5 0h2v2h-2z'/></svg></div>";
+  const ICONO_CENI = "<div class='sede-ico ceni'><img src='app/logos/cenicana.png' alt=''></div>";
+  const ICONO_SEDE = DESDE_CENI ? ICONO_CENI : ICONO_FABRICA;
   L.marker([META.sede.lat, META.sede.lon], { icon: L.divIcon({ className: "", iconSize: [0, 0], html: ICONO_SEDE }), zIndexOffset: 500 })
-    .bindPopup(`<b>Sede — ${esc(META.sede.nombre)}</b><br>Salida ${esc(META.hora_salida)}`).addTo(mapa);
+    .bindPopup(`<b>Salida y regreso — ${esc(META.sede.nombre)}</b><br>Salida ${esc(META.hora_salida)}`).addTo(mapa);
 
   const capaRutas = {}, marcadores = {};
   RUTAS.forEach((r) => {
@@ -117,6 +132,13 @@
   const visible = (p) => (filtroDia === "todos" || String(p.dia) === String(filtroDia)) &&
     (filtroEstado === "todos" || estadoDe(p.id) === filtroEstado) && (filtroSector === "todos" || sectorDe(p) === filtroSector);
 
+  // Íconos de los botones del mapa con los colores de Cenicaña (morado y verde)
+  $("#btnTodo").innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 17.5C9 12 15 14 17.5 7.5" fill="none" stroke="#5E2D91" stroke-width="2" stroke-linecap="round" stroke-dasharray="2.6 2.4"/>
+    <circle cx="6" cy="18" r="2.6" fill="#00B574"/><path d="M18 2.5a3.6 3.6 0 0 0-3.6 3.6c0 2.7 3.6 6.4 3.6 6.4s3.6-3.7 3.6-6.4A3.6 3.6 0 0 0 18 2.5z" fill="#5E2D91"/><circle cx="18" cy="6.1" r="1.3" fill="#fff"/>
+    <path d="M2.5 7V3.5a1 1 0 0 1 1-1H7M21.5 17v3.5a1 1 0 0 1-1 1H17" fill="none" stroke="#00B574" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+  $("#btnCapa").innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 13.6 3.2 9 12 4.4 20.8 9z" fill="#5E2D91"/>
+    <path d="M4.6 12.4 3.2 13.2 12 17.8l8.8-4.6-1.4-.8L12 16.3z" fill="#00B574"/><path d="M4.6 16.4 3.2 17.2 12 21.8l8.8-4.6-1.4-.8L12 20.3z" fill="#B9A3D6"/></svg>`;
+
   // Brújula: aparece cuando el mapa está girado; al tocarla vuelve el norte arriba
   const btnNorte = document.createElement("button");
   btnNorte.className = "fab"; btnNorte.id = "btnNorte"; btnNorte.title = "Orientar el mapa al norte"; btnNorte.setAttribute("aria-label", "Orientar al norte");
@@ -124,7 +146,7 @@
   btnNorte.innerHTML = `<svg viewBox="0 0 48 48" aria-hidden="true">
     <circle cx="24" cy="24" r="22" fill="#fff" stroke="#E4D7F2" stroke-width="2"/>
     <circle cx="24" cy="24" r="16.5" fill="#F6F4FA"/>${marcas}
-    <text x="24" y="10.4" font-size="7.5" text-anchor="middle" fill="#5E2D91" font-family="Tahoma, sans-serif">N</text>
+    <text x="24" y="10.4" font-size="7.5" text-anchor="middle" fill="#00B574" font-family="Tahoma, sans-serif">N</text>
     <path d="M24 12.5 28.4 24h-8.8z" fill="#6E3BA6"/><path d="M24 12.5 28.4 24H24z" fill="#5E2D91"/>
     <path d="M24 35.5 19.6 24h8.8z" fill="#DCCFEC"/><path d="M24 35.5 28.4 24H24z" fill="#C4B1DD"/>
     <circle cx="24" cy="24" r="2.6" fill="#fff" stroke="#5E2D91" stroke-width="1.4"/></svg>`;
@@ -519,11 +541,6 @@
   setInterval(() => { if (sinSenal) probarSenal(); }, 45000);
   if (navigator.onLine === false) modoSinSenal(true);
   $("#btnTodo").onclick = () => { filtroDia = "todos"; filtroEstado = "todos"; filtroSector = "todos"; $("#selDia").value = "todos"; fijarSel("#selEstado", "todos"); $("#selSector").value = "todos"; seguir = false; pintarBotonGps(); pintarTodo(true); };
-  $("#btnSiguiente").onclick = () => {
-    const p = Logica.siguientePendiente(PUNTOS, REG, filtroDia);
-    if (!p) { toast(filtroDia === "todos" ? "¡Todos los puntos están realizados!" : `El día ${filtroDia} está completo`); return; }
-    mostrarVista("mapa"); mapa.setView([p.lat, p.lon], 16); abrirFicha(p.id);
-  };
   $("#selDia").onchange = (e) => { filtroDia = e.target.value; pintarTodo(true); };
   if ($("#selEstado")) $("#selEstado").onchange = (e) => { filtroEstado = e.target.value; pintarTodo(false); };
   $("#selSector").onchange = (e) => { filtroSector = e.target.value; pintarTodo(true); };
@@ -1059,31 +1076,53 @@
   async function pintarMas() {
     const est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null;
     const sesion = Sync.sesion;
-    const ej = PUNTOS[0].id.split("-")[0] + "-000";
+    const ejemplo = RUTAS.length ? PUNTOS.find((p) => p.dia === RUTAS[0].dia) || PUNTOS[0] : PUNTOS[0];
+    const resumenSalida = (o) => {
+      const rs = o.rutas.features.filter((f) => f.geometry.coordinates.length).map((f) => f.properties);
+      return rs.length ? `${rs.length} día(s) por recorrer · ${coma(rs.reduce((s, r) => s + (r.km || 0), 0), 0)} km` : "Sin días pendientes en el plan";
+    };
+    const tarjSalida = (clave, logo, titulo) => OPCIONES_SALIDA[clave] ? `<button class="salida-op${SALIDA === clave ? " activa" : ""}" data-salida="${clave}" aria-pressed="${SALIDA === clave}">
+        <span class="salida-logo"><img src="app/logos/${logo}.png" alt=""></span>
+        <span class="salida-txt"><b>${esc(titulo)}</b><small>${esc(OPCIONES_SALIDA[clave].sede.nombre)}</small><small class="salida-res">${resumenSalida(OPCIONES_SALIDA[clave])}</small></span>
+        <span class="salida-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg></span></button>` : "";
+    const icoOp = (d, tono = "") => `<span class="op-ico ${tono}"><svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg></span>`;
+    const ICO = {
+      descargar: '<path d="M12 4v10m0 0 4-4m-4 4-4-4"/><path d="M5 16v2.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V16"/>',
+      borrar: '<path d="M4 7h16M9.5 7V4.8h5V7M6.5 7l.9 12.2a1 1 0 0 0 1 .9h7.2a1 1 0 0 0 1-.9L17.5 7M10 11v5.5M14 11v5.5"/>',
+      sync: '<path d="M19.5 12a7.5 7.5 0 0 1-13 5.1M4.5 12a7.5 7.5 0 0 1 13-5.1"/><path d="M17.5 3.5v3.6h-3.6M6.5 20.5v-3.6h3.6"/>',
+      salir: '<path d="M14 4h4.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14M10 16l-4-4 4-4M6 12h10"/>',
+      instalar: '<rect x="6.5" y="2.8" width="11" height="18.4" rx="2"/><path d="M12 7.5v6.5m0 0 2.6-2.6M12 14l-2.6-2.6M10.5 18h3"/>',
+      portada: '<path d="M4 11 12 4.5l8 6.5"/><path d="M6 9.5V19a1 1 0 0 0 1 1h3.5v-5.5h3V20H17a1 1 0 0 0 1-1V9.5"/>',
+    };
     $("#vistaMas .contenido").innerHTML = `<h2>Más opciones</h2>
+      <h3>Punto de salida y regreso</h3>
+      <p class="nota">Cada opción tiene su propio plan de rutas por día, calculado desde ese punto. Los días ya realizados no cambian.</p>
+      <div class="salidas">${tarjSalida("ingenio", LOGO_ING || "cenicana", `Ingenio ${META.nombre}`)}${tarjSalida("cenicana", "cenicana", "Cenicaña")}</div>
       <h3>Leyenda</h3>
-      <div class="leyenda">
-        ${Object.keys(E).map((k) => `<div><span class="ley-ico">${circuloEstado(k, 28)}</span>${E[k].etiqueta}</div>`).join("")}
-        <div><span class="ley-ico"><span class="mk-id" style="border-left-color:${COLORES[RUTAS[0].dia]};position:static">${ej}</span></span>El color del borde de la etiqueta indica el día</div>
-        ${RUTAS.map((r) => `<div><span class="linea" style="background:${COLORES[r.dia]}"></span>Ruta del día ${r.dia}</div>`).join("")}
-        <div><span class="ley-ico">${ICONO_SEDE}</span>Sede del ingenio (salida y regreso)</div>
-        <div><span class="ley-ico">${FLECHA_GPS.replace(" sin-rumbo", "")}</span>Mi ubicación: el triángulo apunta hacia donde avanzo</div>
-        <div><span class="ley-ico"><span class="linea" style="background:repeating-linear-gradient(90deg,#fff 0 7px,transparent 7px 12px);outline:2px solid #4A4A4A"></span></span>Mi recorrido de hoy (GPS)</div>
-        ${PEAJES.length ? `<div><span class="ley-ico">${htmlPeaje(true)}</span>Peaje por el que pasa alguna ruta (al tocarlo muestra los días)</div>
-        <div><span class="ley-ico">${htmlPeaje(false)}</span>Peaje cercano por el que no pasa ninguna ruta</div>` : ""}
-      </div>
+      <section class="ley-tarj"><h4>Estado de los puntos</h4>
+        <div class="ley-estados">${Object.keys(E).map((k) => `<div>${circuloEstado(k, 30)}<span>${E[k].etiqueta}</span></div>`).join("")}</div></section>
+      <section class="ley-tarj"><h4>Rutas por día</h4>
+        <div class="ley-dias">${RUTAS.map((r) => `<span><i style="background:${COLORES[r.dia]}"></i>Día ${r.dia}</span>`).join("")}</div>
+        <div class="ley-fila"><span class="ley-ico"><span class="mk-id" style="border-left-color:${COLORES[ejemplo.dia]}">${esc(ejemplo.id)}</span></span>
+          <span>Etiqueta de cada punto: la franja de color de la izquierda indica su día</span></div></section>
+      <section class="ley-tarj"><h4>En el mapa</h4>
+        <div class="ley-fila"><span class="ley-ico">${ICONO_SEDE}</span><span>Salida y regreso: ${esc(META.sede.nombre)}</span></div>
+        <div class="ley-fila"><span class="ley-ico">${FLECHA_GPS.replace(" sin-rumbo", "")}</span><span>Mi ubicación: el triángulo apunta hacia donde avanzo</span></div>
+        <div class="ley-fila"><span class="ley-ico"><svg class="ley-rec" viewBox="0 0 48 12" aria-hidden="true"><path d="M3 6h42" stroke="#4A4A4A" stroke-opacity=".55" stroke-width="7" stroke-linecap="round"/><path d="M3 6h42" stroke="#fff" stroke-width="3" stroke-dasharray="6 5"/></svg></span><span>Mi recorrido de hoy (GPS)</span></div>
+        ${PEAJES.length ? `<div class="ley-fila"><span class="ley-ico">${htmlPeaje(true)}</span><span>Peaje por el que pasa alguna ruta (al tocarlo muestra los días)</span></div>
+        <div class="ley-fila"><span class="ley-ico">${htmlPeaje(false)}</span><span>Peaje cercano por el que no pasa ninguna ruta</span></div>` : ""}</section>
       <h3>Mi recorrido GPS</h3>
       <p class="nota" id="resumenRecorrido">Calculando…</p>
       <h3>Mapa sin señal</h3>
       <p class="nota" id="estadoMapaBase"></p>
-      <button class="opcion" id="bMapaBase"><span>⬇️ Descargar o actualizar el mapa sin señal<small>Imagen satelital Sentinel-2 de toda la zona del ingenio (sin nubes, 2025–2026), para ver el mapa sin internet</small></span></button>
-      <button class="opcion" id="bBorrarRecorrido"><span style="color:var(--magenta)">Borrar el recorrido guardado de este ingenio</span></button>
+      <button class="opcion" id="bMapaBase">${icoOp(ICO.descargar)}<span>Descargar o actualizar el mapa sin señal<small>Imagen satelital Sentinel-2 de toda la zona del ingenio (sin nubes, 2025–2026), para ver el mapa sin internet</small></span></button>
+      <button class="opcion" id="bBorrarRecorrido">${icoOp(ICO.borrar, "rojo")}<span style="color:var(--magenta)">Borrar el recorrido guardado de este ingenio</span></button>
       <h3>Base de datos y sincronización</h3>
       <div class="aviso info" id="estadoSyncTexto">${esc($("#chipSync").textContent)}</div>
       ${!Sync.configurado ? `<p class="nota">La base de datos central aún no está configurada: los registros se guardan solo en este celular.
           Para compartirlos entre el equipo siga la <a href="https://github.com/pracagro2-hash/rutas-muestreo-suelos/blob/main/docs/CONFIGURACION_SUPABASE.md" target="_blank" rel="noopener">guía de configuración</a>.</p>`
         : sesion ? `<p class="nota">Sesión iniciada: ${esc(sesion.user.email)}${Sync.autorizado ? "" : " — este correo no está autorizado; solicite acceso al coordinador."}</p>
-          <button class="opcion" id="bSync"><span>🔄 Sincronizar ahora</span></button><button class="opcion" id="bSalir"><span>Cerrar sesión</span></button>`
+          <button class="opcion" id="bSync">${icoOp(ICO.sync, "verde")}<span>Sincronizar ahora</span></button><button class="opcion" id="bSalir">${icoOp(ICO.salir)}<span>Cerrar sesión</span></button>`
         : `<div class="campo"><label for="correo">Correo autorizado</label><input id="correo" type="email" inputmode="email" autocomplete="email" placeholder="nombre@empresa.com"></div>
           <div class="campo"><label for="clave">Contraseña</label><input id="clave" type="password" autocomplete="current-password" placeholder="Contraseña de su usuario"></div>
           <button class="btn morado" id="bClave">Entrar con contraseña</button>
@@ -1092,14 +1131,21 @@
           <div class="campo"><label for="codigo">Código del correo</label><input id="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Escriba aquí el código"></div>
           <button class="btn borde" id="bCodigo">Entrar con el código</button>`}
       <h3>Aplicación</h3>
-      ${eventoInstalar ? `<button class="opcion" id="bInstalar"><span>📲 Instalar la aplicación en este celular</span></button>` : ""}
-      <a class="opcion" href="index.html"><span>🏠 Volver a la portada<small>Otros ingenios</small></span></a>
+      ${eventoInstalar ? `<button class="opcion" id="bInstalar">${icoOp(ICO.instalar, "verde")}<span>Instalar la aplicación en este celular</span></button>` : ""}
+      <a class="opcion" href="index.html">${icoOp(ICO.portada)}<span>Volver a la portada<small>Otros ingenios</small></span></a>
       <h3>Almacenamiento en este celular</h3>
       <p class="nota">${est ? `En uso: ${coma(est.usage / 1048576, 1)} MB de ${coma(est.quota / 1048576, 0)} MB disponibles.` : ""}
         Los registros y las fotos se guardan en el navegador y se conservan al cerrar la aplicación o reiniciar el celular.</p>
-      <button class="opcion" id="bBorrar"><span style="color:var(--magenta)">Borrar los registros de este ingenio en este celular</span></button>
+      <button class="opcion" id="bBorrar">${icoOp(ICO.borrar, "rojo")}<span style="color:var(--magenta)">Borrar los registros de este ingenio en este celular</span></button>
       <p class="nota">Plan: ${esc(META.metodo_rutas)} · generado el ${esc(META.generado)} · ${RUTAS.length} días · ${PUNTOS.length} puntos.</p>`;
     const on = (sel, fn) => { const el = $(sel); if (el) el.onclick = fn; };
+    document.querySelectorAll("#vistaMas .salida-op").forEach((b) => b.onclick = () => {
+      if (b.dataset.salida === SALIDA) return;
+      if (nav) return toast("Termine la navegación antes de cambiar el punto de salida");
+      localStorage.setItem(CLAVE_SALIDA, b.dataset.salida);
+      sessionStorage.setItem("rutas_tras_salida", "1");
+      location.reload();
+    });
     on("#bSync", () => Sync.sincronizar());
     on("#bSalir", async () => { await Sync.cerrarSesion(); pintarMas(); });
     on("#bEntrar", async () => {
@@ -1202,6 +1248,10 @@
   }
   document.querySelectorAll("#nav button").forEach((b) => { b.onclick = () => mostrarVista(b.dataset.vista); });
   if ($("#buscar")) $("#buscar").oninput = pintarLista;
+  if (sessionStorage.getItem("rutas_tras_salida")) {
+    sessionStorage.removeItem("rutas_tras_salida");
+    setTimeout(() => toast(`Rutas por día con salida y regreso a ${DESDE_CENI ? "Cenicaña" : "la sede del ingenio"}`), 900);
+  }
 
   function pintarTodo(encuadrar) {
     pintarMapa(encuadrar); pintarAvance();
