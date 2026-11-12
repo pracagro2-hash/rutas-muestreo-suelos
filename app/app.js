@@ -120,7 +120,14 @@
   // Brújula: aparece cuando el mapa está girado; al tocarla vuelve el norte arriba
   const btnNorte = document.createElement("button");
   btnNorte.className = "fab"; btnNorte.id = "btnNorte"; btnNorte.title = "Orientar el mapa al norte"; btnNorte.setAttribute("aria-label", "Orientar al norte");
-  btnNorte.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 2.5 16.5 12h-9z" fill="#EC3D96"/><path d="M12 21.5 7.5 12h9z" fill="#9E9E9E"/><text x="12" y="10.6" font-size="5" text-anchor="middle" fill="#fff" font-family="Tahoma">N</text></svg>`;
+  const marcas = Array.from({ length: 12 }, (_, i) => i === 0 ? "" : `<line x1="24" y1="${i % 3 ? 4.6 : 3.6}" x2="24" y2="${i % 3 ? 6.4 : 7.4}" transform="rotate(${i * 30} 24 24)" stroke="${i % 3 ? "#C9B6E0" : "#5E2D91"}" stroke-width="${i % 3 ? 1 : 1.6}" stroke-linecap="round"/>`).join("");
+  btnNorte.innerHTML = `<svg viewBox="0 0 48 48" aria-hidden="true">
+    <circle cx="24" cy="24" r="22" fill="#fff" stroke="#E4D7F2" stroke-width="2"/>
+    <circle cx="24" cy="24" r="16.5" fill="#F6F4FA"/>${marcas}
+    <text x="24" y="10.4" font-size="7.5" text-anchor="middle" fill="#5E2D91" font-family="Tahoma, sans-serif">N</text>
+    <path d="M24 12.5 28.4 24h-8.8z" fill="#6E3BA6"/><path d="M24 12.5 28.4 24H24z" fill="#5E2D91"/>
+    <path d="M24 35.5 19.6 24h8.8z" fill="#DCCFEC"/><path d="M24 35.5 28.4 24H24z" fill="#C4B1DD"/>
+    <circle cx="24" cy="24" r="2.6" fill="#fff" stroke="#5E2D91" stroke-width="1.4"/></svg>`;
   $(".fabs").appendChild(btnNorte);
   btnNorte.onclick = () => { if (mapa.setBearing) mapa.setBearing(0); };
   function pintarNorte() {
