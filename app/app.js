@@ -41,8 +41,10 @@
   $("#tituloApp").innerHTML = `Planificador de Muestreo de Suelos<span class="oculto"> — Ingenio ${esc(META.nombre)}</span>`;
   $("#subtitulo").textContent = `Ingenio ${META.nombre}`;
   // Logo del ingenio (app/logos/<ingenio>.png, fondo transparente) sobre placa blanca; sin logo queda el símbolo de Cenicaña
-  const LOGO_ING = { INCAUCA: "incauca", MANUELITA: "manuelita", CASTILLA: "castilla" }[ING];
+  const LOGO_ING = { INCAUCA: "incauca", MANUELITA: "manuelita", PROVIDENCIA: "providencia", CASTILLA: "castilla" }[ING];
   if (LOGO_ING) $(".cab-logo").outerHTML = `<span class="cab-logo placa"><img src="app/logos/${LOGO_ING}.png" alt="${esc(META.nombre)}"></span>`;
+  // Símbolo de Cenicaña en todos los mapas (arriba a la derecha, junto al estado de sincronización)
+  $("#chipSync").insertAdjacentHTML("beforebegin", `<img class="cab-ceni" src="app/logos/cenicana.png" alt="Cenicaña" title="Cenicaña">`);
   // Sector = hacienda de la suerte (nombre_suerte «Hacienda – Suerte N» de la cédula catastral)
   const sectorDe = (p) => String(p.nombre_suerte || "").split(" – ")[0].trim() || "Sin sector";
   const SECTORES = Array.from(new Set(PUNTOS.map(sectorDe))).sort((a, b) => a.localeCompare(b, "es"));

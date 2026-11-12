@@ -349,3 +349,11 @@ body.navegando .fabs { top: calc(var(--alto-cab) + 16px); }
   #chipSync { font-size: 0; gap: 0; width: 30px; height: 30px; padding: 0; justify-content: center; align-self: flex-start; }
   #chipSync::before { width: 12px; height: 12px; }
 }
+
+/* Símbolo de Cenicaña en el encabezado */
+.cab-ceni { flex: none; height: 42px; width: auto; display: block; padding-left: 10px; border-left: 1.5px solid rgba(255,255,255,.45); }
+@media (max-width: 560px) {
+  .cab-ceni { height: 34px; padding-left: 8px; }
+  .cab-titulo h1 { font-size: 14px; }
+  .cab-fila { gap: 7px; }
+}

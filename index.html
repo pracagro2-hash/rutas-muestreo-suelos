@@ -43,7 +43,7 @@
 <script>
 (function () {
   const COLORES = ["#00C97E", "#5E2D91", "#FFC20E", "#EC3D96"];
-  const LOGOS = { INCAUCA: "incauca", MANUELITA: "manuelita", CASTILLA: "castilla" };
+  const LOGOS = { INCAUCA: "incauca", MANUELITA: "manuelita", PROVIDENCIA: "providencia", CASTILLA: "castilla" };
   const fmt = (v, d = 0) => Number(v).toLocaleString("es-CO", { minimumFractionDigits: d, maximumFractionDigits: d });
   const D = window.DATOS_RUTAS || {};
   const orden = ["INCAUCA", "MANUELITA", "PROVIDENCIA", "CASTILLA"].filter((k) => D[k]);
@@ -52,7 +52,7 @@
     const km = rutas.reduce((s, r) => s + r.km, 0), n = d.puntos.features.length, slug = k.toLowerCase();
     return `<div class="card" style="border-top-color:${COLORES[i % 4]}">
       ${LOGOS[k] ? `<div class="logo-ing"><img src="app/logos/${LOGOS[k]}.png" alt="${d.meta.nombre}"></div><h2 class="oculto">${d.meta.nombre}</h2>` : `<h2>${d.meta.nombre}</h2>`}
-      <p class="sede">Ingenio ${d.meta.nombre} · sede ${d.meta.sede.nombre}</p>
+      <p class="sede">Sede: ${d.meta.sede.nombre}</p>
       <p><b>${n}</b> puntos · <b>${rutas.length}</b> días · <b>${fmt(km)}</b> km</p>
       <div class="barra"><i id="barra-${slug}" style="width:0"></i></div><p id="avance-${slug}" class="sede">Avance: —</p>
       <a class="btn" style="background:${COLORES[i % 4]}" href="${slug}.html">Abrir mapa</a>
