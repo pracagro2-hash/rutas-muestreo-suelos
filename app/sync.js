@@ -110,6 +110,24 @@
     if (hubo) alCambiar();
   }
 
+  /** Sube a la base (tabla recorridos_gps) el recorrido GPS guardado en el celular, de todos los ingenios.
+   *  Marca en el celular hasta qué hora ya subió; los repetidos se ignoran (único por tramo y hora). */
+  async function subirRecorridos() {
+    for (const ing of ["CASTILLA", "INCAUCA", "MANUELITA", "PROVIDENCIA"]) {
+      const clave = "rutas_rec_subido_" + ing, desde = localStorage.getItem(clave) || "";
+      const nuevos = (await Almacen.recorridoDe(ing)).filter((u) => u.t > desde).sort((a, b) => a.t.localeCompare(b.t));
+      for (let i = 0; i < nuevos.length; i += 500) {
+        const lote = nuevos.slice(i, i + 500);
+        const { error } = await cliente.from("recorridos_gps").upsert(lote.map((u) => ({
+          ingenio: u.ingenio, tramo: u.tramo, fecha_hora: u.t, lat: u.lat, lon: u.lon,
+          precision_m: u.precision_m ?? null, velocidad_ms: u.velocidad_ms ?? null, rumbo: u.rumbo ?? null, responsable: u.responsable || null,
+        })), { onConflict: "tramo,fecha_hora", ignoreDuplicates: true });
+        if (error) throw error;
+        localStorage.setItem(clave, lote[lote.length - 1].t);
+      }
+    }
+  }
+
   async function sincronizar() {
     if (!configurado || !cliente || !sesion || !autorizado || !navigator.onLine || sincronizando) { await avisarEstado(); return; }
     sincronizando = true;
@@ -122,6 +140,7 @@
         if (listo) await Almacen.quitarDeCola(op.id);
       }
       await bajarCambios();
+      try { await subirRecorridos(); } catch (e) { console.warn("Recorrido GPS:", e.message || e); }   // no detiene la sincronización de los puntos
       ultimoError = "";
     } catch (e) {
       ultimoError = e.message || String(e);
