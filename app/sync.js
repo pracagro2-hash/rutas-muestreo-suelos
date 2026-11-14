@@ -125,6 +125,10 @@
         if (error) throw error;
         localStorage.setItem(clave, lote[lote.length - 1].t);
       }
+      // Lo que ya está en la base se borra del celular para no ocupar memoria; solo se conserva el día de hoy (se dibuja en el mapa)
+      const subido = localStorage.getItem(clave) || "", hoy = new Date().toDateString();
+      const viejos = (await Almacen.recorridoDe(ing)).filter((u) => u.t <= subido && new Date(u.t).toDateString() !== hoy).map((u) => u.id);
+      if (viejos.length) await Almacen.borrarUbicaciones(viejos);
     }
   }
 

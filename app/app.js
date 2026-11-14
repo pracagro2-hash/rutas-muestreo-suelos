@@ -1180,8 +1180,8 @@
     tramosRecorrido().then((ts) => {
       const el = $("#resumenRecorrido"); if (!el) return;
       const n = ts.reduce((s, t) => s + t.u.length, 0), km = ts.reduce((s, t) => s + t.km, 0);
-      el.textContent = n ? `${ts.length} tramo(s) · ${n} ubicaciones · ${coma(km)} km recorridos, guardados en este celular. El recorrido se graba automáticamente mientras la ubicación (triángulo) está activa y la pantalla encendida.`
-        : "Aún no hay recorrido guardado. Se graba automáticamente al activar la ubicación con el botón del triángulo.";
+      el.textContent = n ? `${ts.length} tramo(s) · ${n} ubicaciones · ${coma(km)} km en este celular (hoy o pendientes de subir). Los días anteriores ya subidos quedan guardados en la base de datos y se borran del celular para no ocupar memoria. El recorrido se graba mientras la ubicación (triángulo) está activa y la pantalla encendida.`
+        : "Sin recorrido pendiente en este celular: lo grabado ya está en la base de datos. Se graba automáticamente al activar la ubicación con el botón del triángulo.";
     });
     on("#bInstalar", async () => { eventoInstalar.prompt(); eventoInstalar = null; pintarMas(); });
     on("#bBorrar", async () => {

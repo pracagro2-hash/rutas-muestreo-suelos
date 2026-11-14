@@ -143,6 +143,11 @@
       return tx(["recorrido"], "readonly", (t) => req(t.objectStore("recorrido").index("ingenio").getAll(ingenio)));
     },
 
+    /** Borra ubicaciones puntuales (por id) — se usa cuando ya están guardadas en la base de datos. */
+    borrarUbicaciones(ids) {
+      return tx(["recorrido"], "readwrite", (t) => { const s = t.objectStore("recorrido"); ids.forEach((k) => s.delete(k)); });
+    },
+
     borrarRecorrido(ingenio) {
       return tx(["recorrido"], "readwrite", async (t) => {
         const claves = await req(t.objectStore("recorrido").index("ingenio").getAllKeys(ingenio));
